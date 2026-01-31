@@ -1,9 +1,9 @@
 package cn.tj.dzd.mc.dzt.teleport.je
 
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.DTPHome
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.addDTPHome
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.deleteDTPHome
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.getDTPHomeList
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.DTPHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.addDTPHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPHomeList
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
 import taboolib.expansion.submitChain

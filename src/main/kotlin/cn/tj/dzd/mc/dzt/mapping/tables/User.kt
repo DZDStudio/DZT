@@ -1,4 +1,4 @@
-package cn.tj.dzd.mc.dzt.mapping.Tables
+package cn.tj.dzd.mc.dzt.mapping.tables
 
 import cn.tj.dzd.mc.dzt.mapping.DatabaseManager
 import cn.tj.dzd.mc.dzt.mapping.dataSource

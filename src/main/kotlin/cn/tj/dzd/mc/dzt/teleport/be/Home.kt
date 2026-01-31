@@ -1,9 +1,9 @@
 package cn.tj.dzd.mc.dzt.teleport.be
 
 import cn.tj.dzd.mc.dzt.Floodgate.getFloodgatePlayer
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.addDTPHome
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.deleteDTPHome
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.getDTPHomeList
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.addDTPHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPHomeList
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.CustomForm
 import org.geysermc.cumulus.form.ModalForm

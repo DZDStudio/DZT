@@ -1,8 +1,8 @@
 package cn.tj.dzd.mc.dzt.teleport.je
 
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.DTPBack
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.deleteDTPBack
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.getDTPBackList
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.DTPBack
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPBack
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPBackList
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
 import taboolib.expansion.submitChain
