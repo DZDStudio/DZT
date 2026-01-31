@@ -13,11 +13,4 @@ object Floodgate {
     fun Player.getFloodgatePlayer(): FloodgatePlayer? {
         return floodgateApi.getPlayer(uniqueId)
     }
-
-    /**
-     * 判断是否为 Floodgate 玩家
-     */
-    fun Player.isFloodgatePlayer(): Boolean {
-        return floodgateApi.isFloodgatePlayer(uniqueId)
-    }
 }
