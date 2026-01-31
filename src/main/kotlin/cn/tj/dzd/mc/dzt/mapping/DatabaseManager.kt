@@ -1,10 +1,12 @@
 package cn.tj.dzd.mc.dzt.mapping
 
 import org.bukkit.Bukkit
+import org.bukkit.Location
 import taboolib.common.platform.function.releaseResourceFile
 import taboolib.common.platform.function.severe
 import taboolib.module.configuration.Configuration
 import taboolib.module.database.getHost
+import taboolib.platform.util.runTask
 import java.sql.SQLException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -28,16 +30,20 @@ object DatabaseManager {
             try {
                 if (!testConnection()) {
                     severe("§c数据库连接丢失！正在关闭服务器...")
-                    // 使用Bukkit API来关闭服务器
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop")
-                    Bukkit.shutdown()
+                    stopServer()
                 }
             } catch (e: Exception) {
                 severe("§c数据库监控出现异常: ${e.message}")
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop")
-                Bukkit.shutdown()
+                stopServer()
             }
         }, 5, 30, TimeUnit.SECONDS) // 每30秒检查一次，延迟5秒开始
+    }
+
+    private fun stopServer() {
+        Location(Bukkit.getWorlds()[0], 0.0, 0.0, 0.0).runTask({
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop")
+            Bukkit.shutdown()
+        })
     }
     
     /**
@@ -74,8 +80,7 @@ object DatabaseManager {
             return true
         } else {
             severe("§c数据库当前不在线！正在关闭服务器以防止数据损坏...")
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop")
-            Bukkit.shutdown()
+            stopServer()
             return false
         }
     }
