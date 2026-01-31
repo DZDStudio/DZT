@@ -1,7 +1,7 @@
-package cn.tj.dzd.mc.dzt.mapping.Tables.dtp
+package cn.tj.dzd.mc.dzt.mapping.tables.dtp
 
 import cn.tj.dzd.mc.dzt.mapping.DatabaseManager
-import cn.tj.dzd.mc.dzt.mapping.Tables.UserMapping
+import cn.tj.dzd.mc.dzt.mapping.tables.UserMapping
 import cn.tj.dzd.mc.dzt.mapping.dataSource
 import cn.tj.dzd.mc.dzt.mapping.getUID
 import cn.tj.dzd.mc.dzt.mapping.host

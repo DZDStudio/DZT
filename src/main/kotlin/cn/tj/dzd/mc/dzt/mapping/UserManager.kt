@@ -1,7 +1,7 @@
 package cn.tj.dzd.mc.dzt.mapping
 
-import cn.tj.dzd.mc.dzt.mapping.Tables.UserMapping
-import cn.tj.dzd.mc.dzt.mapping.Tables.getNickName
+import cn.tj.dzd.mc.dzt.mapping.tables.UserMapping
+import cn.tj.dzd.mc.dzt.mapping.tables.getNickName
 import org.bukkit.entity.Player
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent
 import org.bukkit.event.player.PlayerJoinEvent

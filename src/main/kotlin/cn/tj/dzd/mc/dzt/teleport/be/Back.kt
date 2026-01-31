@@ -1,8 +1,8 @@
 package cn.tj.dzd.mc.dzt.teleport.be
 
 import cn.tj.dzd.mc.dzt.Floodgate.getFloodgatePlayer
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.deleteDTPBack
-import cn.tj.dzd.mc.dzt.mapping.Tables.dtp.getDTPBackList
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPBack
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPBackList
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
