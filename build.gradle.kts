@@ -10,6 +10,12 @@ plugins {
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
+val buildId = System.getenv("BUILD_NUMBER") ?: "dev"
+project.version = "${project.version}-$buildId"
+
+println("Build ID: $buildId")
+println("Processed Version: ${project.version}")
+
 taboolib {
     env {
         install(Basic)
