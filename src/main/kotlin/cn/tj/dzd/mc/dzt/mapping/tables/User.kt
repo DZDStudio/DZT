@@ -46,6 +46,11 @@ object UserMapping {
             }
         }
 
+        // 称号
+        add("title") {
+            type(ColumnTypeSQL.JSON)
+        }
+
         // 注册时间
         add("reg_time") {
             type(ColumnTypeSQL.TIMESTAMP) {
@@ -91,8 +96,8 @@ object UserMapping {
         val currentTime = Instant.ofEpochMilli(System.currentTimeMillis())
             .atOffset(ZoneOffset.UTC)
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-        table.insert(dataSource, "name", "reg_time", "money") {
-            value(name, currentTime, 0)
+        table.insert(dataSource, "name", "title", "reg_time", "money") {
+            value(name, "{\"use_title\":\"\",\"titles\":[]}", currentTime, 0)
         }
     }
 
