@@ -38,7 +38,7 @@ fun openBackJEMenu(pl: Player) {
                 elements { backList }
                 onGenerate { _, element, _, _ ->
                     val time = element.time
-                    val world = element.location.world
+                    val world = element.location.world?.name
                     val x = element.location.x
                     val y = element.location.y
                     val z = element.location.z
