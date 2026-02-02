@@ -14,7 +14,7 @@ import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.buildItem
 
 /**
- * 打开家管理
+ * 打开传送点管理
  * @param pl 玩家
  */
 fun openHomeJEMenu(pl: Player) {
@@ -24,7 +24,7 @@ fun openHomeJEMenu(pl: Player) {
         }
 
         sync {
-            pl.openMenu<PageableChest<DTPHome>>("家管理") {
+            pl.openMenu<PageableChest<DTPHome>>("传送点") {
                 rows(6)
                 map(
                     "####A####",
@@ -37,17 +37,17 @@ fun openHomeJEMenu(pl: Player) {
 
                 set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
                 set('A', buildItem(XMaterial.BOOK) {
-                    name = "添加家"
+                    name = "添加传送点"
                     colored()
                 }) {
-                    pl.sendMessage("§a请在告示牌第一行输新家名称")
+                    pl.sendMessage("§a请在告示牌第一行输新传送点名称")
 
-                    pl.inputSign(arrayOf("", "^^^^^^^^^^", "||||||||||", "§7在第一行输新家名称")) { lines ->
+                    pl.inputSign(arrayOf("", "^^^^^^^^^^", "||||||||||", "§7在第一行输新传送点名称")) { lines ->
                         val homeName = lines[0].trim()
 
                         try {
                             pl.addDTPHome(homeName, pl.location)
-                            pl.sendMessage("§a已添加家[$homeName]！")
+                            pl.sendMessage("§a已添加传送点[$homeName]！")
                         } catch (e: Exception) {
                             pl.sendMessage("§c" + e.message)
                         }
@@ -76,7 +76,7 @@ fun openHomeJEMenu(pl: Player) {
                     when (event.clickEvent().click) {
                         ClickType.LEFT -> {
                             pl.teleport(element.location)
-                            pl.sendMessage("§a已传送到家[$name]！")
+                            pl.sendMessage("§a已传送到传送点[$name]！")
 
                             pl.closeInventory()
                         }
@@ -87,7 +87,7 @@ fun openHomeJEMenu(pl: Player) {
                                     pl.deleteDTPHome(name)
                                 }
                                 sync {
-                                    pl.sendMessage("§a已删除家[$name]！")
+                                    pl.sendMessage("§a已删除传送点[$name]！")
                                     pl.closeInventory()
                                     openHomeJEMenu(pl)
                                 }

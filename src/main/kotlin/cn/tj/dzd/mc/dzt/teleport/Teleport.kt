@@ -38,46 +38,46 @@ fun Player.openDTPMenu() {
     this.runTask({
         val fpl = getFloodgatePlayer()
         if (fpl == null) {
-            openMenu<Chest>("传送菜单") {
+            openMenu<Chest>("传送") {
                 rows(3)
 
                 set(11, buildItem(XMaterial.PLAYER_HEAD) {
-                    name = "&6玩家传送面板"
+                    name = "&6玩家"
                     colored()
                 }) {
                     openTPAJEMenu(this@openDTPMenu)
                 }
 
-                set(13, buildItem(XMaterial.RED_BED) {
-                    name = "&6死亡点面板"
-                    colored()
-                }) {
-                    openBackJEMenu(this@openDTPMenu)
-                }
-
-                set(15, buildItem(XMaterial.BOOK) {
-                    name = "&6家庭面板"
+                set(13, buildItem(XMaterial.BOOK) {
+                    name = "&6传送点"
                     colored()
                 }) {
                     openHomeJEMenu(this@openDTPMenu)
                 }
+
+                set(15, buildItem(XMaterial.RED_BED) {
+                    name = "&6死亡点"
+                    colored()
+                }) {
+                    openBackJEMenu(this@openDTPMenu)
+                }
             }
         } else {
             fpl.sendForm(SimpleForm.builder()
-                .title("传送菜单")
-                .button("玩家传送面板", FormImage.Type.PATH, "textures/ui/warning_alex.png")
-                .button("死亡点面板", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
-                .button("家庭面板", FormImage.Type.PATH, "textures/ui/icon_recipe_item.png")
+                .title("传送")
+                .button("玩家", FormImage.Type.PATH, "textures/ui/warning_alex.png")
+                .button("传送点", FormImage.Type.PATH, "textures/ui/icon_recipe_item.png")
+                .button("死亡点", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
                 .validResultHandler({
                     when (it.clickedButtonId()) {
                         0 -> {
                             openTPABEMenu(this@openDTPMenu)
                         }
                         1 -> {
-                            openBackBEMenu(this@openDTPMenu)
+                            openHomeBEMenu(this@openDTPMenu)
                         }
                         2 -> {
-                            openHomeBEMenu(this@openDTPMenu)
+                            openBackBEMenu(this@openDTPMenu)
                         }
                     }
                 })

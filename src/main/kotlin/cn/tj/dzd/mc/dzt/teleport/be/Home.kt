@@ -12,7 +12,7 @@ import org.geysermc.cumulus.util.FormImage
 import taboolib.expansion.submitChain
 
 /**
- * 打开家管理
+ * 打开传送点管理
  * @param pl 玩家
  */
 fun openHomeBEMenu(pl: Player) {
@@ -22,8 +22,8 @@ fun openHomeBEMenu(pl: Player) {
             pl.getDTPHomeList()
         }
         val fm = SimpleForm.builder()
-        fm.title("家管理")
-        fm.button("添加家", FormImage.Type.PATH, "textures/ui/Add-Ons_Side-Nav_Icon_24x24.png")
+        fm.title("传送点")
+        fm.button("添加传送点", FormImage.Type.PATH, "textures/ui/Add-Ons_Side-Nav_Icon_24x24.png")
         for (home in homeList) {
             fm.button(home.name)
         }
@@ -31,8 +31,8 @@ fun openHomeBEMenu(pl: Player) {
             when (it.clickedButtonId()) {
                 0 -> {
                     fpl.sendForm(CustomForm.builder()
-                        .title("添加家")
-                        .input("新家名称", "请输入新家名称")
+                        .title("添加传送点")
+                        .input("新传送点名称", "请输入新传送点名称")
                         .validResultHandler { response ->
                             val homeName = response.asInput(0) ?:""
 
@@ -44,7 +44,7 @@ fun openHomeBEMenu(pl: Player) {
                                     sync {
                                         fpl.sendForm(ModalForm.builder()
                                             .title("添加成功")
-                                            .content("已添加家[$homeName]！")
+                                            .content("已添加传送点[$homeName]！")
                                             .button1("返回")
                                             .button2("关闭")
                                             .validResultHandler { response ->
@@ -74,19 +74,23 @@ fun openHomeBEMenu(pl: Player) {
                     val home = homeList[it.clickedButtonId() - 1]
                     fpl.sendForm(ModalForm.builder()
                         .title(home.name)
-                        .content("您要对家[${home.name}]]进行什么操作？")
+                        .content("您要对传送点[${home.name}]进行什么操作？")
                         .button1("前往")
                         .button2("§c删除")
                         .validResultHandler { response ->
                             when (response.clickedButtonId()) {
                                 0 -> {
-                                    pl.teleport(home.location)
-                                    pl.sendMessage("§a已传送到家[${home.name}]！")
+                                    submitChain {
+                                        sync {
+                                            pl.teleport(home.location)
+                                            pl.sendMessage("§a已传送至传送点[${home.name}]！")
+                                        }
+                                    }
                                 }
                                 1 -> {
                                     fpl.sendForm(ModalForm.builder()
                                         .title("警告")
-                                        .content("您真的要删除家[${home.name}]吗？\n他会消失很久，很久的！")
+                                        .content("您真的要删除传送点[${home.name}]吗？\n他会消失很久，很久的！")
                                         .button1("§c确认")
                                         .button2("返回")
                                         .validResultHandler { response ->
@@ -97,7 +101,7 @@ fun openHomeBEMenu(pl: Player) {
                                                             pl.deleteDTPHome(home.name)
                                                         }
                                                         sync {
-                                                            pl.sendMessage("§a已删除家[${home.name}]！")
+                                                            pl.sendMessage("§a已删除传送点[${home.name}]！")
                                                             openHomeBEMenu(pl)
                                                         }
                                                     }

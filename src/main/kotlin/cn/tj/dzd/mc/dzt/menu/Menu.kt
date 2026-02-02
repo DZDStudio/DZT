@@ -40,10 +40,11 @@ fun Player.openMenu() {
             this.runTask({
                 val fpl = getFloodgatePlayer()
                 if (fpl == null) {
+                    // JE
                     openMenu<Chest>("菜单") {
                         rows(3)
 
-                        set(13, buildItem(XMaterial.PLAYER_HEAD) {
+                        set(13, buildItem(XMaterial.NETHER_PORTAL) {
                             name = "&6传送"
                             colored()
                         }) {
@@ -51,9 +52,10 @@ fun Player.openMenu() {
                         }
                     }
                 } else {
+                    // BE
                     fpl.sendForm(SimpleForm.builder()
                         .title("菜单")
-                        .button("传送", FormImage.Type.PATH, "textures/ui/warning_alex.png")
+                        .button("传送", FormImage.Type.PATH, "textures/ui/mashup_world.png")
                         .validResultHandler({
                             when (it.clickedButtonId()) {
                                 0 -> {
