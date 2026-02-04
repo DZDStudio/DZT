@@ -44,7 +44,7 @@ fun Player.openMenu() {
                     openMenu<Chest>("菜单") {
                         rows(3)
 
-                        set(13, buildItem(XMaterial.NETHER_PORTAL) {
+                        set(13, buildItem(XMaterial.ENDER_PEARL) {
                             name = "&6传送"
                             colored()
                         }) {
