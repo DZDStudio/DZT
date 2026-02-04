@@ -1,0 +1,77 @@
+name: 构建和部署最新版本
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: 构建
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Java 环境
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+
+      - name: 设置 Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: 编译项目
+        run: ./gradlew build
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: 部署
+    runs-on: [self-hosted, NingBo-Deploy]
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 准备部署目录
+        run: |
+          # 检查并创建目标目录
+          if [ ! -d "/workspace/hxyly/plugins/update" ]; then
+            mkdir -p /workspace/hxyly/plugins/update
+            echo "已创建 /workspace/hxyly/plugins/update 目录"
+          fi
+          
+          # 清空目录内容
+          rm -rf /workspace/hxyly/plugins/update/*
+          echo "已清空 /workspace/hxyly/plugins/update 目录"
+
+      - name: 下载并部署构建产物
+        uses: actions/download-artifact@v5
+        with:
+          name: plugin-jar
+          path: /workspace/hxyly/plugins/update
+
+      - name: 验证部署结果
+        run: |
+          # 统计 jar 文件数量
+          JAR_COUNT=$(find /workspace/hxyly/plugins/update -name "*.jar" | wc -l)
+          
+          # 判断部署是否成功
+          if [ "$JAR_COUNT" -gt 0 ]; then
+            echo "✅ 部署成功！找到 $JAR_COUNT 个 jar 文件"
+            echo "部署完成时间: $(date)"
+            exit 0
+          else
+            echo "❌ 部署失败！未找到任何 jar 文件"
+            echo "部署失败时间: $(date)"
+            exit 1
+          fi
