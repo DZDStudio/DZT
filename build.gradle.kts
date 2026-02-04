@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import io.izzel.taboolib.gradle.*
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 
 plugins {
@@ -10,12 +12,8 @@ plugins {
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
-val buildId: String? = System.getenv("BUILD_NUMBER")
-if (buildId != null) {
-    println("Build ID: $buildId")
-    project.version = "${project.version}.$buildId"
-}
-println("Processed Version: ${project.version}")
+// 使用 年-这一年的第几天-这一天的第几毫秒 作为版本号
+project.version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-DDD-HHmmss"))
 
 taboolib {
     env {

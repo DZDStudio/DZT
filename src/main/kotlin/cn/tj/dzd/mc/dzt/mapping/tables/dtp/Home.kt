@@ -36,7 +36,7 @@ object DTPHomeMapping {
 
         // 世界
         add("world") {
-            type(ColumnTypeSQL.VARCHAR, 8) {
+            type(ColumnTypeSQL.VARCHAR, 16) {
                 options(
                     ColumnOptionSQL.NOTNULL,  // 不能为空
                 )
