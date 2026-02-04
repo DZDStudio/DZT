@@ -35,7 +35,7 @@ jobs:
 
   deploy:
     name: 部署
-    runs-on: [self-hosted, NingBo-Deploy]
+    runs-on: NingBo-Deploy
     needs: build
     if: github.ref == 'refs/heads/main'
 
