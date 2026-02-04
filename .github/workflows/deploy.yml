@@ -36,6 +36,8 @@ jobs:
     name: 部署
     runs-on:
       - self-hosted
+      - Linux
+      - X64
       - dzdgame
     needs: build
     if: github.ref == 'refs/heads/main'
