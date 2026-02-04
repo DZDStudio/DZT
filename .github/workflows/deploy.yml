@@ -28,14 +28,15 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: plugin-jar
-          path: build/libs/*.jar
+          path: build/libs/DZT-*.jar
           if-no-files-found: error
           retention-days: 7
 
   deploy:
     name: 部署
-    runs-on: NingBo-Deploy
+    runs-on:
+      - self-hosted
+      - dzdgame
     needs: build
     if: github.ref == 'refs/heads/main'
 
