@@ -15,6 +15,7 @@ fun Player.getUID(): Number {
     if (UIDCache.containsKey(name)) {
         return UIDCache[name]!!
     } else {
+        kickPlayer("§l§c非常抱歉，我们无法检索到您的 DZD 账户。\n请尝试重新加入服务器或联系运维人员！")
         throw Exception("用户不存在")
     }
 }
