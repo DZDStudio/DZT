@@ -2,6 +2,7 @@ package cn.tj.dzd.mc.dzt.teleport.be
 
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPBack
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPBackList
+import cn.tj.dzd.mc.dzt.teleport.openTeleportBEMenu
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
@@ -67,6 +68,9 @@ fun openBackBEMenu(pl: Player, fpl: FloodgatePlayer) {
                         }
                     }
                 )
+            }
+            fm.closedResultHandler { _ ->
+                openTeleportBEMenu(pl, fpl)
             }
             fpl.sendForm(fm)
         }

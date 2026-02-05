@@ -3,6 +3,7 @@ package cn.tj.dzd.mc.dzt.teleport.be
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.addDTPHome
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPHome
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPHomeList
+import cn.tj.dzd.mc.dzt.teleport.openTeleportBEMenu
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.CustomForm
 import org.geysermc.cumulus.form.ModalForm
@@ -22,13 +23,15 @@ fun openHomeBEMenu(pl: Player, fpl: FloodgatePlayer) {
         }
         val fm = SimpleForm.builder()
         fm.title("§l§6传送点")
+        fm.button("返回上一页", FormImage.Type.PATH, "textures/ui/box_ride.png")
         fm.button("添加传送点", FormImage.Type.PATH, "textures/ui/Add-Ons_Side-Nav_Icon_24x24.png")
         for (home in homeList) {
             fm.button(home.name)
         }
         fm.validResultHandler{
             when (it.clickedButtonId()) {
-                0 -> {
+                0 -> { openTeleportBEMenu(pl, fpl) }
+                1 -> {
                     fpl.sendForm(CustomForm.builder()
                         .title("§l§6添加传送点")
                         .input("新传送点名称", "请输入新传送点名称")
@@ -67,10 +70,14 @@ fun openHomeBEMenu(pl: Player, fpl: FloodgatePlayer) {
                                     }
                                 )
                             }
-                        })
+                        }
+                        .closedResultHandler { _ ->
+                            openHomeBEMenu(pl, fpl)
+                        }
+                    )
                 }
                 else -> {
-                    val home = homeList[it.clickedButtonId() - 1]
+                    val home = homeList[it.clickedButtonId() - 2]
                     fpl.sendForm(ModalForm.builder()
                         .title("§l§6" + home.name)
                         .content("您要对传送点[${home.name}]进行什么操作？")

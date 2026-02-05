@@ -2,6 +2,7 @@ package cn.tj.dzd.mc.dzt.teleport.be
 
 import cn.tj.dzd.mc.dzt.Floodgate.getFloodgatePlayer
 import cn.tj.dzd.mc.dzt.teleport.je.openTPAConfirmJEMenu
+import cn.tj.dzd.mc.dzt.teleport.openTeleportBEMenu
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
@@ -22,8 +23,8 @@ fun openTPABEMenu(pl: Player, fpl: FloodgatePlayer) {
     for (player in onlinePlayerList) {
         fm.button(player.name, FormImage.Type.URL, "https://heads-mc.dzd.tj.cn/avatar/${player.name}")
     }
-    fm.validResultHandler {
-        val tpl = onlinePlayerList[it.clickedButtonId()]
+    fm.validResultHandler { result ->
+        val tpl = onlinePlayerList[result.clickedButtonId()]
         if (!tpl.isOnline) {
             pl.sendMessage("§c玩家不存在！")
         }
@@ -32,6 +33,9 @@ fun openTPABEMenu(pl: Player, fpl: FloodgatePlayer) {
         } else {
             openTPAConfirmBEMenu(pl, tpl)
         }
+    }
+    fm.closedResultHandler { _ ->
+        openTeleportBEMenu(pl, fpl)
     }
     fpl.sendForm(fm)
 }

@@ -54,7 +54,7 @@ dependencies {
 
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
 
-    implementation("com.mysql:mysql-connector-j:9.5.0")
+//    implementation("com.mysql:mysql-connector-j:9.5.0")
 }
 
 tasks.withType<JavaCompile> {
