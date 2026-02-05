@@ -6,19 +6,19 @@ import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
 import org.geysermc.cumulus.util.FormImage
+import org.geysermc.floodgate.api.player.FloodgatePlayer
 import taboolib.platform.util.onlinePlayers
 
 /**
  * 打开 TPA 菜单
  * @param pl 请求传送的玩家
  */
-fun openTPABEMenu(pl: Player) {
-    val fpl = pl.getFloodgatePlayer() ?: throw Exception("获取Floodgate玩家失败！")
+fun openTPABEMenu(pl: Player, fpl: FloodgatePlayer) {
     val onlinePlayerList: List<Player> = onlinePlayers.filter { it.name != pl.name }
 
     val fm = SimpleForm.builder()
-    fm.title("玩家间传送")
-    fm.content("请选择要传送的玩家：")
+    fm.title("§l§6玩家")
+    fm.content("请选择要传送到的玩家：")
     for (player in onlinePlayerList) {
         fm.button(player.name, FormImage.Type.URL, "https://heads-mc.dzd.tj.cn/avatar/${player.name}")
     }
@@ -45,7 +45,7 @@ fun openTPAConfirmBEMenu(pl: Player, tpl: Player) {
     val tfpl = tpl.getFloodgatePlayer() ?: return
     pl.sendMessage("§a已向 ${tpl.name} 发送传送请求。")
     tfpl.sendForm(ModalForm.builder()
-        .title("请求传送")
+        .title("§l§6请求传送")
         .content("&6${pl.name} 请求传送至您的位置")
         .button1("§b同意")
         .button2("§c拒绝")

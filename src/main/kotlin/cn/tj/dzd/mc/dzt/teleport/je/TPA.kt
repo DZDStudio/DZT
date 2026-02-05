@@ -2,6 +2,7 @@ package cn.tj.dzd.mc.dzt.teleport.je
 
 import cn.tj.dzd.mc.dzt.Floodgate.getFloodgatePlayer
 import cn.tj.dzd.mc.dzt.teleport.be.openTPAConfirmBEMenu
+import cn.tj.dzd.mc.dzt.teleport.openTeleportJEMenu
 import org.bukkit.Bukkit.getPlayer
 import org.bukkit.entity.Player
 import taboolib.library.xseries.XMaterial
@@ -18,10 +19,11 @@ import taboolib.platform.util.onlinePlayers
 fun openTPAJEMenu(pl: Player) {
     val onlinePlayerList: List<String> = onlinePlayers.filter { it.name != pl.name }.map { it.name }
 
-    pl.openMenu<PageableChest<String>>("TPA 玩家间传送") {
+    pl.openMenu<PageableChest<String>>("§l§6玩家") {
         rows(6)
+
         map(
-            "#########",
+            "R###M####",
             "#@@@@@@@#",
             "#@@@@@@@#",
             "#@@@@@@@#",
@@ -29,24 +31,19 @@ fun openTPAJEMenu(pl: Player) {
             "###B#C###"
         )
 
+        onClick(lock = true) {}
         set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
+        set('M', XMaterial.YELLOW_STAINED_GLASS_PANE) { name = "§l§6玩家" }
+        set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(pl) }
 
-        // 设置可用槽位（通过字符）
         slotsBy('@')
-
-        // 设置元素列表
         elements { onlinePlayerList }
-
-        // 生成每个元素对应的物品
-        onGenerate { player, element, index, slot ->
+        onGenerate { _, element, _, _ ->
             buildItem(XMaterial.PLAYER_HEAD) {
-                name = "&6传送至 $element"
+                name = "§6传送至 $element"
                 skullOwner = element
-                colored()
             }
         }
-
-        // 元素点击事件
         onClick { _, element ->
             val tpl = getPlayer(element)
 
@@ -64,15 +61,12 @@ fun openTPAJEMenu(pl: Player) {
             pl.closeInventory()
         }
 
-        // 设置下一页按钮
         setNextPage(49) { page, hasNextPage ->
             buildItem(if (hasNextPage) XMaterial.ARROW else XMaterial.GRAY_STAINED_GLASS_PANE) {
                 name = if (hasNextPage) "§a下一页" else "§7没有下一页了"
                 lore += "§7当前页: §e${page + 1}"
             }
         }
-
-        // 设置上一页按钮
         setPreviousPage(47) { page, hasPreviousPage ->
             buildItem(if (hasPreviousPage) XMaterial.ARROW else XMaterial.GRAY_STAINED_GLASS_PANE) {
                 name = if (hasPreviousPage) "§a上一页" else "§7已经是第一页了"

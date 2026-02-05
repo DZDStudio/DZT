@@ -4,6 +4,7 @@ import cn.tj.dzd.mc.dzt.mapping.tables.dtp.DTPHome
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.addDTPHome
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPHome
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPHomeList
+import cn.tj.dzd.mc.dzt.teleport.openTeleportJEMenu
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
 import taboolib.expansion.submitChain
@@ -24,10 +25,10 @@ fun openHomeJEMenu(pl: Player) {
         }
 
         sync {
-            pl.openMenu<PageableChest<DTPHome>>("传送点") {
+            pl.openMenu<PageableChest<DTPHome>>("§l§6传送点") {
                 rows(6)
                 map(
-                    "####A####",
+                    "R###M####",
                     "#@@@@@@@#",
                     "#@@@@@@@#",
                     "#@@@@@@@#",
@@ -35,10 +36,13 @@ fun openHomeJEMenu(pl: Player) {
                     "###B#C###"
                 )
 
+                onClick(lock = true) {}
                 set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
+                set('M', XMaterial.YELLOW_STAINED_GLASS_PANE) { name = "§l§6传送点" }
+                set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(pl) }
+
                 set('A', buildItem(XMaterial.BOOK) {
-                    name = "添加传送点"
-                    colored()
+                    name = "§l§6添加传送点"
                 }) {
                     pl.sendMessage("§a请在告示牌第一行输新传送点名称")
 
@@ -70,7 +74,6 @@ fun openHomeJEMenu(pl: Player) {
                         colored()
                     }
                 }
-
                 onClick { event, element ->
                     val name = element.name
                     when (event.clickEvent().click) {
@@ -96,14 +99,12 @@ fun openHomeJEMenu(pl: Player) {
                         else -> {}
                     }
                 }
-
                 setNextPage(49) { page, hasNextPage ->
                     buildItem(if (hasNextPage) XMaterial.ARROW else XMaterial.GRAY_STAINED_GLASS_PANE) {
                         name = if (hasNextPage) "§a下一页" else "§7没有下一页了"
                         lore += "§7当前页: §e${page + 1}"
                     }
                 }
-
                 setPreviousPage(47) { page, hasPreviousPage ->
                     buildItem(if (hasPreviousPage) XMaterial.ARROW else XMaterial.GRAY_STAINED_GLASS_PANE) {
                         name = if (hasPreviousPage) "§a上一页" else "§7已经是第一页了"
