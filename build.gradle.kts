@@ -7,40 +7,16 @@ import java.time.format.DateTimeFormatter
 
 plugins {
     java
-    id("io.izzel.taboolib") version "2.0.27"
-    id("org.jetbrains.kotlin.jvm") version "2.2.0"
+    id("io.izzel.taboolib") version "2.0.30"
+    id("org.jetbrains.kotlin.jvm") version "2.3.0"
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
-// 使用 年-这一年的第几天-这一天的第几毫秒 作为版本号
 project.version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-DDD-HHmmss"))
 
 taboolib {
     env {
-        install(Basic)
-        install(BukkitFakeOp)
-        install(BukkitNMS)
-        install(BukkitHook)
-        install(BukkitNMSDataSerializer)
-        install(BukkitNMSItemTag)
-        install(BukkitNMSEntityAI)
-        install(BukkitNMSUtil)
-        install(BukkitNavigation)
-        install(BukkitUI)
-        install(BukkitUtil)
-        install(AlkaidRedis)
-        install(Database)
-        install(DatabasePlayer)
-        install(DatabasePlayerRedis)
-        install(IOC)
-        install(LettuceRedis)
-        install(Ptc)
-        install(PtcObject)
-        install(CommandHelper)
-        install(I18n)
-        install(MinecraftChat)
-        install(MinecraftEffect)
-        install(Bukkit)
+        install(Basic, Bukkit, BukkitHook, BukkitNMS, BukkitNMSDataSerializer, BukkitNMSItemTag, BukkitNMSUtil, BukkitUI, BukkitUtil, CommandHelper, Database, MinecraftChat, MinecraftEffect, XSeries)
     }
     description {
         name = "DZT"
@@ -53,10 +29,13 @@ taboolib {
             name("DZDStudio")
         }
         links {
-            name("https://git.dzd.tj.cn/DZDGame")
+            name("https://github.com/DZDStudio/DZT")
         }
     }
-    version { taboolib = "6.2.4-1645904" }
+    version {
+        taboolib = "6.2.4-a7c1695"
+        coroutines = "1.8.1"
+    }
 }
 
 repositories {
@@ -67,11 +46,11 @@ repositories {
 }
 
 dependencies {
+    compileOnly(kotlin("stdlib"))
+
     compileOnly("ink.ptms.core:v12111:12111:universal")
     compileOnly("ink.ptms.core:v12111:12111:mapped")
     compileOnly("ink.ptms:nms-all:1.0.0")
-    compileOnly(kotlin("stdlib"))
-    compileOnly(fileTree("libs"))
 
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
 
