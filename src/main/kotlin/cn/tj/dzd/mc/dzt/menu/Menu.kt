@@ -92,6 +92,10 @@ private object Listener {
             pl.giveItem(menuItem)
             pl.sendMessage("§a欢迎来到 DZDGame，已给予您菜单物品!")
         }
+
+        throttledActionMap[pl.uniqueId] = throttle(500) {
+            openMenuUI(pl)
+        }
     }
 
     // 当玩家使用菜单物品时打开菜单
@@ -104,5 +108,12 @@ private object Listener {
             pl.openMenu()
             event.isCancelled = true
         }
+    }
+
+    @SubscribeEvent
+    fun onPlayerQuit(event: PlayerQuitEvent) {
+        val pl = event.player
+
+        throttledActionMap.remove(pl.uniqueId)
     }
 }
