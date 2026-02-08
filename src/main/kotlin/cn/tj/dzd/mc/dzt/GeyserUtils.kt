@@ -25,7 +25,7 @@ object GeyserUtils {
     }
 
     /**
-     * 获取 Geyser 延迟
+     * 获取延迟
      */
     fun Player.getPing(): Int {
         val gpl = getGeyserConnection()
