@@ -1,6 +1,6 @@
 package cn.tj.dzd.mc.dzt.teleport.je
 
-import cn.tj.dzd.mc.dzt.Floodgate.getFloodgatePlayer
+import cn.tj.dzd.mc.dzt.GeyserUtils.getFloodgatePlayer
 import cn.tj.dzd.mc.dzt.teleport.be.openTPAConfirmBEMenu
 import cn.tj.dzd.mc.dzt.teleport.openTeleportJEMenu
 import org.bukkit.Bukkit.getPlayer

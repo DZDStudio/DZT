@@ -1,6 +1,6 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import io.izzel.taboolib.gradle.*
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -52,6 +52,7 @@ dependencies {
     compileOnly("ink.ptms.core:v12111:12111:mapped")
     compileOnly("ink.ptms:nms-all:1.0.0")
 
+    compileOnly("org.geysermc.geyser:api:2.9.0-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
 
 //    implementation("com.mysql:mysql-connector-j:9.5.0")
@@ -63,18 +64,34 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
-        jvmTarget.set(JVM_1_8)
+        jvmTarget.set(JVM_17)
         freeCompilerArgs.add("-Xjvm-default=all")
     }
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks {
+    clean {
+        doFirst {
+            // 清理构建产物目录
+            delete(layout.buildDirectory)
+            println("已清理构建目录: ${layout.buildDirectory}")
+        }
+    }
+    
+    build {
+        dependsOn(clean)
+        doFirst {
+            println("开始构建项目...")
+        }
+    }
+    
     runServer {
+        dependsOn(clean)
         minecraftVersion("1.21.11")
         downloadPlugins {
             github("dmulloy2", "ProtocolLib", "5.4.0", "ProtocolLib.jar")

@@ -1,6 +1,6 @@
 package cn.tj.dzd.mc.dzt.menu
 
-import cn.tj.dzd.mc.dzt.Floodgate.getFloodgatePlayer
+import cn.tj.dzd.mc.dzt.GeyserUtils.getFloodgatePlayer
 import cn.tj.dzd.mc.dzt.menu.be.openMainBEMenu
 import cn.tj.dzd.mc.dzt.menu.je.openMainJEMenu
 import org.bukkit.entity.Player
