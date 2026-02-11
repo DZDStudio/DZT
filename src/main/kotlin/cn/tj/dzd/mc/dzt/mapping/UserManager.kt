@@ -9,10 +9,10 @@ import org.bukkit.event.player.PlayerQuitEvent
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
 
-val UIDCache = mutableMapOf<String, Number>()
+val UIDCache = mutableMapOf<String, Number?>()
 
 fun Player.getUID(): Number {
-    if (UIDCache.containsKey(name)) {
+    if (UIDCache.containsKey(name) && UIDCache[name] != null) {
         return UIDCache[name]!!
     } else {
         kickPlayer("§l§c非常抱歉，我们无法检索到您的 DZD 账户。\n请尝试重新加入服务器或联系运维人员！")
@@ -27,7 +27,7 @@ private object UserManagerListener {
         UserMapping.addUser(event.name)
 
         // 缓存 UID
-        UIDCache[event.name] = UserMapping.getUID(event.name) ?: -1
+        UIDCache[event.name] = UserMapping.getUID(event.name)
     }
 
     @SubscribeEvent()
