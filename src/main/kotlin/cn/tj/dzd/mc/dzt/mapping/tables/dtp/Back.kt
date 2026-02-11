@@ -1,13 +1,12 @@
 package cn.tj.dzd.mc.dzt.mapping.tables.dtp
 
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
 import cn.tj.dzd.mc.dzt.mapping.DatabaseManager
 import cn.tj.dzd.mc.dzt.mapping.dataSource
-import cn.tj.dzd.mc.dzt.mapping.getUID
 import cn.tj.dzd.mc.dzt.mapping.host
 import cn.tj.dzd.mc.dzt.mapping.tables.UserMapping
 import org.bukkit.Bukkit
 import org.bukkit.Location
-import org.bukkit.entity.Player
 import org.bukkit.event.entity.PlayerDeathEvent
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
@@ -157,20 +156,20 @@ class DTPBack {
 }
 
 /**
- * 获取玩家的死亡点列表
+ * 获取死亡点列表
  */
-fun Player.getDTPBackList(): List<DTPBack> {
-    return DTPBackMapping.getBack(getUID()).reversed()
+fun DZDPlayer.getTeleportBackList(): List<DTPBack> {
+    return DTPBackMapping.getBack(uid).reversed()
 }
 
 /**
  * 删除指定的死亡点
  */
-fun Player.deleteDTPBack(time: String) {
-    DTPBackMapping.deleteBack(getUID(), time)
+fun DZDPlayer.deleteTeleportBack(time: String) {
+    DTPBackMapping.deleteBack(uid, time)
 }
 
-private object BackMappingListener {
+private object Listener {
     @SubscribeEvent(priority = EventPriority.MONITOR)
     fun onPlayerDeath(event: PlayerDeathEvent) {
         val pl = event.getEntity()

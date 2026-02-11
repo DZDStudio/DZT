@@ -1,68 +1,62 @@
 package cn.tj.dzd.mc.dzt.teleport.be
 
-import cn.tj.dzd.mc.dzt.GeyserUtils.getFloodgatePlayer
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
+import cn.tj.dzd.mc.dzt.mapping.onlineDZDPlayers
 import cn.tj.dzd.mc.dzt.teleport.je.openTPAConfirmJEMenu
 import cn.tj.dzd.mc.dzt.teleport.openTeleportBEMenu
-import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
 import org.geysermc.cumulus.util.FormImage
-import org.geysermc.floodgate.api.player.FloodgatePlayer
-import taboolib.platform.util.onlinePlayers
 
 /**
  * 打开 TPA 菜单
- * @param pl 请求传送的玩家
  */
-fun openTPABEMenu(pl: Player, fpl: FloodgatePlayer) {
-    val onlinePlayerList: List<Player> = onlinePlayers.filter { it.name != pl.name }
+fun openTPABEMenu(dp: DZDPlayer) {
+    val onlineDZDPlayersList: List<DZDPlayer> = onlineDZDPlayers//.filter { it.name != dp.pl.name }
 
     val fm = SimpleForm.builder()
     fm.title("§l§6玩家")
     fm.content("请选择要传送到的玩家：")
-    for (player in onlinePlayerList) {
-        fm.button(player.name, FormImage.Type.URL, "https://heads-mc.dzd.tj.cn/avatar/${player.name}")
+    for (dp in onlineDZDPlayersList) {
+        fm.button(dp.name, FormImage.Type.URL, "https://heads-mc.dzd.tj.cn/avatar/${dp.pl.name}")
     }
     fm.validResultHandler { result ->
-        val tpl = onlinePlayerList[result.clickedButtonId()]
-        if (!tpl.isOnline) {
-            pl.sendMessage("§c玩家不存在！")
+        val tdp = onlineDZDPlayersList[result.clickedButtonId()]
+        if (!tdp.isOnline()) {
+            dp.sendError("玩家不存在！")
         }
-        if (tpl.getFloodgatePlayer() == null) {
-            openTPAConfirmJEMenu(pl, tpl)
+        if (dp.isJE()) {
+            openTPAConfirmJEMenu(dp, tdp)
         } else {
-            openTPAConfirmBEMenu(pl, tpl)
+            openTPAConfirmBEMenu(dp, tdp)
         }
     }
     fm.closedResultHandler { _ ->
-        openTeleportBEMenu(pl, fpl)
+        openTeleportBEMenu(dp)
     }
-    fpl.sendForm(fm)
+    dp.sendForm(fm)
 }
 
 /**
  * 打开 TPA 确认菜单
- * @param pl 请求传送的玩家
- * @param tpl 被请求传送的玩家
  */
-fun openTPAConfirmBEMenu(pl: Player, tpl: Player) {
-    val tfpl = tpl.getFloodgatePlayer() ?: return
-    pl.sendMessage("§a已向 ${tpl.name} 发送传送请求。")
-    tfpl.sendForm(ModalForm.builder()
+fun openTPAConfirmBEMenu(dp: DZDPlayer, tdp: DZDPlayer) {
+    dp.sendSuccess("已向 ${tdp.name} 发送传送请求。")
+    tdp.sendForm(ModalForm.builder()
         .title("§l§6请求传送")
-        .content("&6${pl.name} 请求传送至您的位置")
+        .content("§6${dp.name} 请求传送至您的位置")
         .button1("§b同意")
         .button2("§c拒绝")
         .validResultHandler { response ->
             when (response.clickedButtonId()) {
                 0 -> {
-                    pl.teleport(tpl.location)
-                    pl.sendMessage("§a${tpl.name}同意了您的传送请求。")
-                    tpl.sendMessage("§a已同意${pl.name}的传送请求。")
+                    dp.teleport(tdp.location)
+                    dp.sendSuccess("${tdp.name}同意了您的传送请求。")
+                    tdp.sendSuccess("已同意${dp.name}的传送请求。")
                 }
                 1 -> {
-                    pl.sendMessage("§c${tpl.name}拒绝了您的传送请求。")
-                    tpl.sendMessage("§c已拒绝${pl.name}的传送请求。")
+                    dp.sendError("§c${tdp.name}拒绝了您的传送请求。")
+                    tdp.sendError("§c已拒绝${dp.name}的传送请求。")
                 }
             }
         }

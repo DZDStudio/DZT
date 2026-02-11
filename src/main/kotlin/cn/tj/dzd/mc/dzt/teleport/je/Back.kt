@@ -1,10 +1,10 @@
 package cn.tj.dzd.mc.dzt.teleport.je
 
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.DTPBack
-import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPBack
-import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPBackList
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteTeleportBack
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getTeleportBackList
 import cn.tj.dzd.mc.dzt.teleport.openTeleportJEMenu
-import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
 import taboolib.expansion.submitChain
 import taboolib.library.xseries.XMaterial
@@ -14,16 +14,15 @@ import taboolib.platform.util.buildItem
 
 /**
  * 打开返回死亡点菜单
- * @param pl 玩家
  */
-fun openBackJEMenu(pl: Player) {
+fun openBackJEMenu(dp: DZDPlayer) {
     submitChain {
         val backList = async {
-            pl.getDTPBackList()
+            dp.getTeleportBackList()
         }
 
         sync {
-            pl.openMenu<PageableChest<DTPBack>>("§l§6死亡点") {
+            dp.pl.openMenu<PageableChest<DTPBack>>("§l§6死亡点") {
                 rows(6)
                 map(
                     "R###M####",
@@ -37,7 +36,7 @@ fun openBackJEMenu(pl: Player) {
                 onClick(lock = true) {}
                 set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
                 set('M', XMaterial.YELLOW_STAINED_GLASS_PANE) { name = "§l§6死亡点" }
-                set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(pl) }
+                set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(dp) }
 
                 slotsBy('@')
                 elements { backList }
@@ -60,20 +59,20 @@ fun openBackJEMenu(pl: Player) {
                     val time = element.time
                     when (event.clickEvent().click) {
                         ClickType.LEFT -> {
-                            pl.teleport(element.location)
-                            pl.sendMessage("§a已传送到死亡地点[$time]！")
+                            dp.teleport(element.location)
+                            dp.sendSuccess("已传送到死亡地点[$time]！")
 
-                            pl.closeInventory()
+                            dp.pl.closeInventory()
                         }
                         ClickType.SHIFT_RIGHT -> {
                             submitChain {
                                 async {
-                                    pl.deleteDTPBack(time)
+                                    dp.deleteTeleportBack(time)
                                 }
                                 sync {
-                                    pl.sendMessage("§a已删除死亡记录[$time]！")
-                                    pl.closeInventory()
-                                    openBackJEMenu(pl)
+                                    dp.sendSuccess("已删除死亡记录[$time]！")
+                                    dp.pl.closeInventory()
+                                    openBackJEMenu(dp)
                                 }
                             }
                         }
