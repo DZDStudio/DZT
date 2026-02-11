@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.menu
 
-import cn.tj.dzd.mc.dzt.GeyserUtils.getFloodgatePlayer
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
+import cn.tj.dzd.mc.dzt.mapping.getDZDPlayer
 import cn.tj.dzd.mc.dzt.menu.be.openMainBEMenu
 import cn.tj.dzd.mc.dzt.menu.je.openMainJEMenu
 import org.bukkit.entity.Player
@@ -10,19 +11,24 @@ import org.bukkit.event.player.PlayerQuitEvent
 import taboolib.common.function.ThrottleFunction
 import taboolib.common.function.throttle
 import taboolib.common.platform.event.SubscribeEvent
+import taboolib.expansion.submitChain
 import taboolib.library.xseries.XMaterial
-import taboolib.platform.util.*
+import taboolib.platform.util.buildItem
+import taboolib.platform.util.hasItem
+import taboolib.platform.util.hasLore
+import taboolib.platform.util.runTask
 import java.util.*
 
 val throttledActionMap = mutableMapOf<UUID, ThrottleFunction.Singleton>()
 
-fun openMenuUI(pl: Player) {
-    pl.runTask({
-        val fpl = pl.getFloodgatePlayer()
-        if (fpl == null) {
-            openMainJEMenu(pl)
-        } else {
-            openMainBEMenu(pl, fpl)
+fun openMenuUI(dp: DZDPlayer) {
+    dp.pl.runTask({
+        submitChain {
+            if (dp.isJE()) {
+                sync { openMainJEMenu(dp) }
+            } else {
+                sync { openMainBEMenu(dp) }
+            }
         }
     })
 }
@@ -45,17 +51,17 @@ val menuItem = buildItem(XMaterial.CLOCK) {
 private object Listener {
     @SubscribeEvent
     fun onPlayerJoin(event: PlayerJoinEvent) {
-        val pl = event.player
-        val iv = pl.inventory
+        val dp = event.player.getDZDPlayer()
+        val iv = dp.pl.inventory
         if (!iv.hasItem(1) { item ->
                 item.hasLore("#MENU#")
             }){
-            pl.giveItem(menuItem)
-            pl.sendMessage("§a欢迎来到 DZDGame，已给予您菜单物品!")
+            dp.giveItem(menuItem)
+            dp.sendSuccess("欢迎来到 DZDGame，已给予您菜单物品!")
         }
 
-        throttledActionMap[pl.uniqueId] = throttle(500) {
-            openMenuUI(pl)
+        throttledActionMap[dp.pl.uniqueId] = throttle(500) {
+            openMenuUI(dp)
         }
     }
 

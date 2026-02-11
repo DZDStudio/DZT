@@ -1,11 +1,11 @@
 package cn.tj.dzd.mc.dzt.teleport.je
 
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
 import cn.tj.dzd.mc.dzt.mapping.tables.dtp.DTPHome
-import cn.tj.dzd.mc.dzt.mapping.tables.dtp.addDTPHome
-import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteDTPHome
-import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getDTPHomeList
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.addTeleportHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.deleteTeleportHome
+import cn.tj.dzd.mc.dzt.mapping.tables.dtp.getTeleportHomeList
 import cn.tj.dzd.mc.dzt.teleport.openTeleportJEMenu
-import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
 import taboolib.expansion.submitChain
 import taboolib.library.xseries.XMaterial
@@ -16,16 +16,15 @@ import taboolib.platform.util.buildItem
 
 /**
  * 打开传送点管理
- * @param pl 玩家
  */
-fun openHomeJEMenu(pl: Player) {
+fun openHomeJEMenu(dp: DZDPlayer) {
     submitChain {
         val homeList = async {
-            pl.getDTPHomeList()
+            dp.getTeleportHomeList()
         }
 
         sync {
-            pl.openMenu<PageableChest<DTPHome>>("§l§6传送点") {
+            dp.pl.openMenu<PageableChest<DTPHome>>("§l§6传送点") {
                 rows(6)
                 map(
                     "R###M###A",
@@ -39,23 +38,19 @@ fun openHomeJEMenu(pl: Player) {
                 onClick(lock = true) {}
                 set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
                 set('M', XMaterial.YELLOW_STAINED_GLASS_PANE) { name = "§l§6传送点" }
-                set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(pl) }
+                set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(dp) }
 
                 set('A', buildItem(XMaterial.BOOK) {
                     name = "§l§6添加传送点"
                 }) {
-                    pl.sendMessage("§a请在告示牌第一行输新传送点名称")
+                    dp.sendSuccess("请在告示牌第一行输新传送点名称")
 
-                    pl.inputSign(arrayOf("", "^^^^^^^^^^", "||||||||||", "§7在第一行输新传送点名称")) { lines ->
+                    dp.pl.inputSign(arrayOf("", "^^^^^^^^^^", "||||||||||", "§7在第一行输新传送点名称")) { lines ->
                         val homeName = lines[0].trim()
 
-                        try {
-                            pl.addDTPHome(homeName, pl.location)
-                            pl.sendMessage("§a已添加传送点[$homeName]！")
-                        } catch (e: Exception) {
-                            pl.sendMessage("§c" + e.message)
-                        }
-                        openHomeJEMenu(pl)
+                        dp.addTeleportHome(homeName, dp.location)
+                        dp.sendSuccess("已添加传送点[$homeName]！")
+                        openHomeJEMenu(dp)
                     }
                 }
                 slotsBy('@')
@@ -78,21 +73,21 @@ fun openHomeJEMenu(pl: Player) {
                     val name = element.name
                     when (event.clickEvent().click) {
                         ClickType.LEFT -> {
-                            pl.teleport(element.location)
-                            pl.sendMessage("§a已传送到传送点[$name]！")
+                            dp.teleport(element.location)
+                            dp.sendSuccess("已传送到传送点[$name]！")
 
-                            pl.closeInventory()
+                            dp.pl.closeInventory()
                         }
                         ClickType.SHIFT_RIGHT -> {
                             // 异步执行数据库删除操作
                             submitChain {
                                 async {
-                                    pl.deleteDTPHome(name)
+                                    dp.deleteTeleportHome(name)
                                 }
                                 sync {
-                                    pl.sendMessage("§a已删除传送点[$name]！")
-                                    pl.closeInventory()
-                                    openHomeJEMenu(pl)
+                                    dp.sendSuccess("已删除传送点[$name]！")
+                                    dp.pl.closeInventory()
+                                    openHomeJEMenu(dp)
                                 }
                             }
                         }

@@ -1,12 +1,11 @@
 package cn.tj.dzd.mc.dzt.mapping.tables.dtp
 
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
 import cn.tj.dzd.mc.dzt.mapping.DatabaseManager
 import cn.tj.dzd.mc.dzt.mapping.dataSource
-import cn.tj.dzd.mc.dzt.mapping.getUID
 import cn.tj.dzd.mc.dzt.mapping.host
 import org.bukkit.Bukkit
 import org.bukkit.Location
-import org.bukkit.entity.Player
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
 import taboolib.module.database.ColumnOptionSQL
@@ -155,23 +154,23 @@ class DTPHome {
 }
 
 /**
- * 添加家
+ * 添加传送点
  * @param name 家名称
  */
-fun Player.addDTPHome(name: String, location: Location) {
-    DTPHomeMapping.addHome(getUID(), name, location)
+fun DZDPlayer.addTeleportHome(name: String, location: Location) {
+    DTPHomeMapping.addHome(uid, name, location)
 }
 
 /**
- * 获取家列表
+ * 获取传送点列表
  */
-fun Player.getDTPHomeList(): List<DTPHome> {
-    return DTPHomeMapping.getHome(getUID())
+fun DZDPlayer.getTeleportHomeList(): List<DTPHome> {
+    return DTPHomeMapping.getHome(uid)
 }
 
 /**
- * 删除指定的家
+ * 删除指定的传送点
  */
-fun Player.deleteDTPHome(name: String) {
-    DTPHomeMapping.deleteHome(getUID(), name)
+fun DZDPlayer.deleteTeleportHome(name: String) {
+    DTPHomeMapping.deleteHome(uid, name)
 }

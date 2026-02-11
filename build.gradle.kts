@@ -9,6 +9,7 @@ plugins {
     java
     id("io.izzel.taboolib") version "2.0.30"
     id("org.jetbrains.kotlin.jvm") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
@@ -23,6 +24,7 @@ taboolib {
         desc("DZDGame 服务器核心插件")
         load("STARTUP")
         dependencies {
+            name("Geyser-Spigot")
             name("floodgate")
         }
         contributors {
@@ -33,7 +35,7 @@ taboolib {
         }
     }
     version {
-        taboolib = "6.2.4-a7c1695"
+        taboolib = "6.2.4-86dd2bf"
         coroutines = "1.8.1"
     }
 }
@@ -52,10 +54,8 @@ dependencies {
     compileOnly("ink.ptms.core:v12111:12111:mapped")
     compileOnly("ink.ptms:nms-all:1.0.0")
 
-    compileOnly("org.geysermc.geyser:api:2.9.0-SNAPSHOT")
-    compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
-
-//    implementation("com.mysql:mysql-connector-j:9.5.0")
+    compileOnly("org.geysermc.geyser:api:2.9.3-SNAPSHOT")
+    compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
 }
 
 tasks.withType<JavaCompile> {
@@ -77,28 +77,20 @@ java {
 tasks {
     clean {
         doFirst {
-            // 清理构建产物目录
             delete(layout.buildDirectory)
-            println("已清理构建目录: ${layout.buildDirectory}")
-        }
-    }
-    
-    build {
-        dependsOn(clean)
-        doFirst {
-            println("开始构建项目...")
         }
     }
     
     runServer {
         dependsOn(clean)
+        serverJar(file("run/leaf-1.21.11-41.jar"))
         minecraftVersion("1.21.11")
         downloadPlugins {
             github("dmulloy2", "ProtocolLib", "5.4.0", "ProtocolLib.jar")
-            github("PlaceholderAPI", "PlaceholderAPI", "2.11.7", "PlaceholderAPI-2.11.7.jar")
-            url("https://download.luckperms.net/1614/bukkit/loader/LuckPerms-Bukkit-5.5.26.jar")
+            github("PlaceholderAPI", "PlaceholderAPI", "2.12.2", "PlaceholderAPI-2.12.2.jar")
+            url("https://download.luckperms.net/1620/bukkit/loader/LuckPerms-Bukkit-5.5.32.jar")
 
-            url("https://download.geysermc.org/v2/projects/geyser/versions/2.9.2/builds/1045/downloads/spigot")
+            url("https://download.geysermc.org/v2/projects/geyser/versions/2.9.3/builds/1071/downloads/spigot")
             url("https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/126/downloads/spigot")
             url("https://download.geysermc.org/v2/projects/hurricane/versions/2.1/builds/3/downloads/spigot")
         }

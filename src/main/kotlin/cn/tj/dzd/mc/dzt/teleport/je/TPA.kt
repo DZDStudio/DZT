@@ -1,25 +1,22 @@
 package cn.tj.dzd.mc.dzt.teleport.je
 
-import cn.tj.dzd.mc.dzt.GeyserUtils.getFloodgatePlayer
+import cn.tj.dzd.mc.dzt.mapping.DZDPlayer
+import cn.tj.dzd.mc.dzt.mapping.onlineDZDPlayers
 import cn.tj.dzd.mc.dzt.teleport.be.openTPAConfirmBEMenu
 import cn.tj.dzd.mc.dzt.teleport.openTeleportJEMenu
-import org.bukkit.Bukkit.getPlayer
-import org.bukkit.entity.Player
 import taboolib.library.xseries.XMaterial
 import taboolib.module.ui.openMenu
 import taboolib.module.ui.type.Chest
 import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.buildItem
-import taboolib.platform.util.onlinePlayers
 
 /**
  * 打开 TPA 菜单
- * @param pl 请求传送的玩家
  */
-fun openTPAJEMenu(pl: Player) {
-    val onlinePlayerList: List<String> = onlinePlayers.filter { it.name != pl.name }.map { it.name }
+fun openTPAJEMenu(dp: DZDPlayer) {
+    val onlinePlayerList: List<DZDPlayer> = onlineDZDPlayers//.filter { it.name != dp.name }
 
-    pl.openMenu<PageableChest<String>>("§l§6玩家") {
+    dp.pl.openMenu<PageableChest<DZDPlayer>>("§l§6玩家") {
         rows(6)
 
         map(
@@ -34,31 +31,29 @@ fun openTPAJEMenu(pl: Player) {
         onClick(lock = true) {}
         set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
         set('M', XMaterial.YELLOW_STAINED_GLASS_PANE) { name = "§l§6玩家" }
-        set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(pl) }
+        set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回上一页" }) { openTeleportJEMenu(dp) }
 
         slotsBy('@')
         elements { onlinePlayerList }
         onGenerate { _, element, _, _ ->
             buildItem(XMaterial.PLAYER_HEAD) {
-                name = "§6传送至 $element"
-                skullOwner = element
+                name = "§6传送至 §r${element.name}"
+                skullOwner = element.pl.name
             }
         }
-        onClick { _, element ->
-            val tpl = getPlayer(element)
-
-            if (tpl == null) {
-                pl.sendMessage("§c玩家不存在！")
+        onClick { _, tdp ->
+            if (!tdp.isOnline()) {
+                dp.sendError("玩家不存在！")
                 return@onClick
             }
 
-            if (tpl.getFloodgatePlayer() == null) {
-                openTPAConfirmJEMenu(pl, tpl)
+            if (dp.isJE()) {
+                openTPAConfirmJEMenu(dp, tdp)
             } else {
-                openTPAConfirmBEMenu(pl, tpl)
+                openTPAConfirmBEMenu(dp, tdp)
             }
 
-            pl.closeInventory()
+            dp.pl.closeInventory()
         }
 
         setNextPage(49) { page, hasNextPage ->
@@ -78,50 +73,57 @@ fun openTPAJEMenu(pl: Player) {
 
 /**
  * 打开 TPA 确认菜单
- * @param pl 请求传送的玩家
- * @param tpl 被请求传送的玩家
  */
-fun openTPAConfirmJEMenu(pl: Player, tpl: Player) {
+fun openTPAConfirmJEMenu(dp: DZDPlayer, tdp: DZDPlayer) {
     var isReq = false
-    pl.sendMessage("§a已向 ${tpl.name} 发送传送请求。")
-    tpl.openMenu<Chest>("请求传送") {
+    dp.sendSuccess("已向 ${tdp.name} 发送传送请求。")
+    tdp.openMenu<Chest>("请求传送") {
         rows(3)
 
-        set(4, buildItem(XMaterial.PLAYER_HEAD) {
-            name = "&6${pl.name} 请求传送至您的位置"
-            skullOwner = pl.name
-            colored()
-        }) {}
+        map(
+            "####M####",
+            "#  Y N  #",
+            "#########"
+        )
 
-        set(12, buildItem(XMaterial.DIAMOND) {
+        onClick(lock = true) {}
+        set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE){ name = " " })
+
+        set('M', buildItem(XMaterial.PLAYER_HEAD) {
+            name = "§6玩家 §r${dp.name} §6请求传送至您的位置"
+            skullOwner = dp.pl.name
+            colored()
+        })
+
+        set('Y', buildItem(XMaterial.DIAMOND) {
             name = "§b同意"
-            lore += "§7点击后将同意${pl.name}请求传送至您的位置。"
+            lore += "§7点击后将同意${dp.name}请求传送至您的位置。"
         }) {
             if (isReq) {
-                tpl.closeInventory()
+                tdp.pl.closeInventory()
                 return@set
             }
             isReq = true
 
-            pl.teleport(tpl.location)
-            pl.sendMessage("§a${tpl.name}同意了您的传送请求。")
-            tpl.sendMessage("§a已同意${pl.name}的传送请求。")
-            tpl.closeInventory()
+            dp.teleport(tdp)
+            dp.sendSuccess("${tdp.name} 同意了您的传送请求。")
+            tdp.sendSuccess("已同意 ${dp.name} 的传送请求。")
+            tdp.pl.closeInventory()
         }
 
-        set(14, buildItem(XMaterial.REDSTONE) {
+        set('N', buildItem(XMaterial.REDSTONE) {
             name = "§c拒绝"
-            lore += "§7点击后将拒绝${pl.name}请求传送至您的位置。"
+            lore += "§7点击后将拒绝 ${dp.name} 请求传送至您的位置。"
         }) {
             if (isReq) {
-                tpl.closeInventory()
+                tdp.closeInventory()
                 return@set
             }
             isReq = true
 
-            pl.sendMessage("§c${tpl.name}拒绝了您的传送请求。")
-            tpl.sendMessage("§c已拒绝${pl.name}的传送请求。")
-            tpl.closeInventory()
+            dp.sendError("${tdp.name} 拒绝了您的传送请求。")
+            tdp.sendError("已拒绝 ${dp.name} 的传送请求。")
+            tdp.closeInventory()
         }
 
         onClose {
@@ -130,8 +132,8 @@ fun openTPAConfirmJEMenu(pl: Player, tpl: Player) {
             }
             isReq = true
 
-            pl.sendMessage("§c${tpl.name}拒绝了您的传送请求。")
-            tpl.sendMessage("§c已拒绝${pl.name}的传送请求。")
+            dp.sendError("${tdp.name} 拒绝了您的传送请求。")
+            tdp.sendError("已拒绝 ${dp.name} 的传送请求。")
         }
     }
 }
