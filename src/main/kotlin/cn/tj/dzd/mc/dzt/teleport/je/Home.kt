@@ -28,7 +28,7 @@ fun openHomeJEMenu(pl: Player) {
             pl.openMenu<PageableChest<DTPHome>>("§l§6传送点") {
                 rows(6)
                 map(
-                    "R###M####",
+                    "R###M###A",
                     "#@@@@@@@#",
                     "#@@@@@@@#",
                     "#@@@@@@@#",
