@@ -14,7 +14,7 @@ import taboolib.platform.util.buildItem
  * 打开 TPA 菜单
  */
 fun openTPAJEMenu(dp: DZDPlayer) {
-    val onlinePlayerList: List<DZDPlayer> = onlineDZDPlayers//.filter { it.name != dp.name }
+    val onlinePlayerList: List<DZDPlayer> = onlineDZDPlayers.filter { it.name != dp.name }
 
     dp.pl.openMenu<PageableChest<DZDPlayer>>("§l§6玩家") {
         rows(6)
