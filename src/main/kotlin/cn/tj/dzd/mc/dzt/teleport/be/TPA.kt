@@ -12,7 +12,7 @@ import org.geysermc.cumulus.util.FormImage
  * 打开 TPA 菜单
  */
 fun openTPABEMenu(dp: DZDPlayer) {
-    val onlineDZDPlayersList: List<DZDPlayer> = onlineDZDPlayers//.filter { it.name != dp.pl.name }
+    val onlineDZDPlayersList: List<DZDPlayer> = onlineDZDPlayers.filter { it.name != dp.pl.name }
 
     val fm = SimpleForm.builder()
     fm.title("§l§6玩家")
