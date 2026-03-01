@@ -35,7 +35,7 @@ jobs:
 
   deploy:
     name: 部署
-    runs-on: NingBo-Deploy
+    runs-on: TianJin-Deploy
     needs: build
     if: github.ref == 'refs/heads/main'
 
@@ -43,25 +43,25 @@ jobs:
       - name: 准备部署目录
         run: |
           # 检查并创建目标目录
-          if [ ! -d "/workspace/hxyly/plugins/update" ]; then
-            mkdir -p /workspace/hxyly/plugins/update
-            echo "已创建 /workspace/hxyly/plugins/update 目录"
+          if [ ! -d "/vol4/1000/AppData/DZDGame/plugins/update" ]; then
+            mkdir -p /vol4/1000/AppData/DZDGame/plugins/update
+            echo "已创建 /vol4/1000/AppData/DZDGame/plugins/update 目录"
           fi
           
           # 清空目录内容
-          rm -rf /workspace/hxyly/plugins/update/*
-          echo "已清空 /workspace/hxyly/plugins/update 目录"
+          rm -rf /vol4/1000/AppData/DZDGame/plugins/update/*
+          echo "已清空 /vol4/1000/AppData/DZDGame/plugins/update 目录"
 
       - name: 下载并部署构建产物
         uses: actions/download-artifact@v5
         with:
           name: plugin-jar
-          path: /workspace/hxyly/plugins/update
+          path: /vol4/1000/AppData/DZDGame/plugins/update
 
       - name: 验证部署结果
         run: |
           # 统计 jar 文件数量
-          JAR_COUNT=$(find /workspace/hxyly/plugins/update -name "*.jar" | wc -l)
+          JAR_COUNT=$(find /vol4/1000/AppData/DZDGame/plugins/update -name "*.jar" | wc -l)
           
           # 判断部署是否成功
           if [ "$JAR_COUNT" -gt 0 ]; then
