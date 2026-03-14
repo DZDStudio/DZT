@@ -56,6 +56,9 @@ dependencies {
 
     compileOnly("org.geysermc.geyser:api:2.9.4-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
+
+    taboo("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    taboo("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
 }
 
 tasks.withType<JavaCompile> {
