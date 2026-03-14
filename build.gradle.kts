@@ -17,7 +17,7 @@ project.version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-D
 
 taboolib {
     env {
-        install(Basic, Bukkit, BukkitHook, BukkitNMS, BukkitNMSDataSerializer, BukkitNMSItemTag, BukkitNMSUtil, BukkitUI, BukkitUtil, CommandHelper, Database, MinecraftChat, MinecraftEffect, XSeries)
+        install(AlkaidRedis, Basic, Bukkit, BukkitFakeOp, BukkitHook, BukkitNMS, BukkitNMSDataSerializer, BukkitNMSEntityAI, BukkitNMSItemTag, BukkitNMSUtil, BukkitNavigation, BukkitUI, BukkitUtil, CommandHelper, Database, DatabasePlayer, DatabasePlayerRedis, I18n, IOC, LettuceRedis, Metrics, MinecraftChat, MinecraftEffect, Ptc, PtcObject, XSeries)
     }
     description {
         name = "DZT"
@@ -54,7 +54,7 @@ dependencies {
     compileOnly("ink.ptms.core:v12111:12111:mapped")
     compileOnly("ink.ptms:nms-all:1.0.0")
 
-    compileOnly("org.geysermc.geyser:api:2.9.3-SNAPSHOT")
+    compileOnly("org.geysermc.geyser:api:2.9.4-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
 }
 
@@ -90,8 +90,8 @@ tasks {
             github("PlaceholderAPI", "PlaceholderAPI", "2.12.2", "PlaceholderAPI-2.12.2.jar")
             url("https://download.luckperms.net/1620/bukkit/loader/LuckPerms-Bukkit-5.5.32.jar")
 
-            url("https://download.geysermc.org/v2/projects/geyser/versions/2.9.3/builds/1071/downloads/spigot")
-            url("https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/126/downloads/spigot")
+            url("https://download.geysermc.org/v2/projects/geyser/versions/2.9.4/builds/1097/downloads/spigot")
+            url("https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/130/downloads/spigot")
             url("https://download.geysermc.org/v2/projects/hurricane/versions/2.1/builds/3/downloads/spigot")
         }
     }
