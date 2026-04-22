@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 
 plugins {
     java
-    id("io.izzel.taboolib") version "2.0.31"
+    id("io.izzel.taboolib") version "2.0.37"
     id("org.jetbrains.kotlin.jvm") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
     id("xyz.jpenilla.run-paper") version "3.0.2"
@@ -35,7 +35,7 @@ taboolib {
         }
     }
     version {
-        taboolib = "6.2.4-99fb800"
+        taboolib = "6.3.0-716e043"
         coroutines = "1.8.1"
     }
 }
@@ -54,7 +54,7 @@ dependencies {
     compileOnly("ink.ptms.core:v12111:12111:mapped")
     compileOnly("ink.ptms:nms-all:1.0.0")
 
-    compileOnly("org.geysermc.geyser:api:2.9.4-SNAPSHOT")
+    compileOnly("org.geysermc.geyser:api:2.9.5-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
 
     taboo("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
@@ -86,15 +86,15 @@ tasks {
     
     runServer {
         dependsOn(clean)
-        serverJar(file("run/leaf-1.21.11-41.jar"))
+        serverJar(file("run/leaf-1.21.11-115.jar"))
         minecraftVersion("1.21.11")
         downloadPlugins {
             github("dmulloy2", "ProtocolLib", "5.4.0", "ProtocolLib.jar")
             github("PlaceholderAPI", "PlaceholderAPI", "2.12.2", "PlaceholderAPI-2.12.2.jar")
-            url("https://download.luckperms.net/1620/bukkit/loader/LuckPerms-Bukkit-5.5.32.jar")
+            url("https://download.luckperms.net/1631/bukkit/loader/LuckPerms-Bukkit-5.5.42.jar")
 
-            url("https://download.geysermc.org/v2/projects/geyser/versions/2.9.4/builds/1097/downloads/spigot")
-            url("https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/130/downloads/spigot")
+            url("https://download.geysermc.org/v2/projects/geyser/versions/2.9.5/builds/1121/downloads/spigot")
+            url("https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/132/downloads/spigot")
             url("https://download.geysermc.org/v2/projects/hurricane/versions/2.1/builds/3/downloads/spigot")
         }
     }
