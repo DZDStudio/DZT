@@ -54,7 +54,7 @@ object Teleport {
     private fun openJava(player: Player) {
         player.openMenu<Chest>(TextLogo) {
             rows(5)
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "R###M####",

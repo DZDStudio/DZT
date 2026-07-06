@@ -40,7 +40,7 @@ object JavaPageableChestUI {
 
         player.openMenu<PageableChest<ItemStack>>(title) {
             rows(6)
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "#########",

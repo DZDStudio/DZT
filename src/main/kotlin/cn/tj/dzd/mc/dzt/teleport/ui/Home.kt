@@ -59,7 +59,7 @@ object Home {
     private fun openJava(player: Player, homes: List<DTPHome>) {
         player.openMenu<PageableChest<DTPHome>>("§l§6传送点") {
             rows(6)
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "R###M###A",

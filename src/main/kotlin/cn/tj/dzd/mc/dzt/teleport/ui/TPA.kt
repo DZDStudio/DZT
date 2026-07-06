@@ -40,7 +40,7 @@ object TPA {
     private fun openJava(player: Player, targets: List<Player>) {
         player.openMenu<PageableChest<Player>>("§l§6玩家传送") {
             rows(6)
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "R###M####",
@@ -128,7 +128,7 @@ object TPA {
         var handled = false
         target.openMenu<Chest>("§l§6请求传送") {
             rows(3)
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "####M####",
