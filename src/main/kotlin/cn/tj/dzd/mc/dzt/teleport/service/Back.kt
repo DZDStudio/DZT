@@ -1,8 +1,8 @@
 package cn.tj.dzd.mc.dzt.teleport.service
 
 import cn.tj.dzd.mc.dzt.data.DatabaseGuard
-import cn.tj.dzd.mc.dzt.teleport.table.BackRecord
-import cn.tj.dzd.mc.dzt.teleport.table.backRecordMapper
+import cn.tj.dzd.mc.dzt.data.table.BackRecord
+import cn.tj.dzd.mc.dzt.data.table.backRecordMapper
 import cn.tj.dzd.mc.dzt.util.foliaTeleport
 import org.bukkit.Location
 import org.bukkit.entity.Player
@@ -24,7 +24,7 @@ data class DTPBack(
 )
 
 object BackService {
-    private const val MAX_BACK_RECORDS = 16
+    private const val MAX_BACK_RECORDS = 32
 
     @SubscribeEvent
     fun onPlayerDeath(event: PlayerDeathEvent) {

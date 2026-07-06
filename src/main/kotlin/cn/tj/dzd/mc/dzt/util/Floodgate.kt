@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.util
 
 import org.bukkit.entity.Player
+import org.geysermc.geyser.api.GeyserApi
 import org.geysermc.cumulus.form.Form
 import org.geysermc.cumulus.form.SimpleForm
 import org.geysermc.cumulus.form.util.FormBuilder
@@ -13,6 +14,24 @@ var floodgateApi = FloodgateApi.getInstance()
  */
 fun Player.isBePlayer(): Boolean {
     return floodgateApi.isFloodgatePlayer(uniqueId)
+}
+
+/**
+ * 获取玩家网络延迟。
+ *
+ * Java 玩家使用 Bukkit/Paper 的 ping；基岩版玩家优先使用 Geyser 会话 ping，
+ * 避免只看到 Floodgate/Geyser 到 Java 服务端之间的本地延迟。
+ *
+ * @return 玩家延迟，单位为毫秒；Geyser 会话不可用时回退到 Bukkit/Paper ping。
+ */
+fun Player.networkPing(): Int {
+    if (!isBePlayer()) {
+        return ping
+    }
+
+    return runCatching {
+        GeyserApi.api().connectionByUuid(uniqueId)?.ping()
+    }.getOrNull() ?: ping
 }
 
 /**

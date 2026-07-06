@@ -1,8 +1,8 @@
 package cn.tj.dzd.mc.dzt.teleport.service
 
 import cn.tj.dzd.mc.dzt.data.DatabaseGuard
-import cn.tj.dzd.mc.dzt.teleport.table.HomeRecord
-import cn.tj.dzd.mc.dzt.teleport.table.homeRecordMapper
+import cn.tj.dzd.mc.dzt.data.table.HomeRecord
+import cn.tj.dzd.mc.dzt.data.table.homeRecordMapper
 import cn.tj.dzd.mc.dzt.util.Icon
 import cn.tj.dzd.mc.dzt.util.foliaTeleport
 import org.bukkit.Location

@@ -1,13 +1,11 @@
-package cn.tj.dzd.mc.dzt.teleport.table
+package cn.tj.dzd.mc.dzt.data.table
 
 import cn.tj.dzd.mc.dzt.data.DataSource
+import cn.tj.dzd.mc.dzt.data.cachedMapper
 import taboolib.expansion.Key
 import taboolib.expansion.Length
-import taboolib.expansion.TableName
-import taboolib.expansion.mapper
 import java.util.UUID
 
-@TableName("back_record")
 data class BackRecord(
     @param:Key
     val uuid: UUID,
@@ -19,4 +17,4 @@ data class BackRecord(
     val y: Double,
     val z: Double,
 )
-val backRecordMapper by mapper<BackRecord>(DataSource)
+val backRecordMapper by cachedMapper<BackRecord>(DataSource)

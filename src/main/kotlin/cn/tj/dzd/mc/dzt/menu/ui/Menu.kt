@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.menu.ui
 
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
+import cn.tj.dzd.mc.dzt.money.ui.MoneyUI
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaPerformCommand
 import cn.tj.dzd.mc.dzt.util.isBePlayer
@@ -58,11 +59,11 @@ object Menu {
             map(
                 "####I####",
                 "#       #",
-                "#   T   #",
+                "#  T E  #",
                 "#       #",
                 "#########"
             )
-            set('#', buildItem(XMaterial.LIGHT_GRAY_STAINED_GLASS_PANE) {
+            set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) {
                 name = " "
             })
 
@@ -77,19 +78,28 @@ object Menu {
             }) {
                 pl.openTeleport()
             }
+
+            set('E', buildItem(XMaterial.EMERALD) {
+                name = "经济"
+                lore += "查看余额与流水记录"
+            }) {
+                MoneyUI.openMoneyUI(pl)
+            }
         }
     }
     fun be(pl: Player) {
         val fm = SimpleForm.builder()
             .title(TextLogo)
             .button("传送", FormImage.Type.PATH, "textures/ui/csb_purchase_warning.png")
+            .button("经济", FormImage.Type.PATH, "textures/items/emerald.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .validResultHandler { res ->
                 val id = res.clickedButtonId()
 
                 when (id) {
                     0 -> pl.openTeleport()
-                    1 -> pl.foliaPerformCommand("geyser advancements")
+                    1 -> MoneyUI.openMoneyUI(pl)
+                    2 -> pl.foliaPerformCommand("geyser advancements")
                 }
             }
         pl.sendForm(fm)
