@@ -2,6 +2,7 @@ package cn.tj.dzd.mc.dzt.menu
 
 import cn.tj.dzd.mc.dzt.menu.ui.Menu
 import cn.tj.dzd.mc.dzt.util.TextLogo
+import cn.tj.dzd.mc.dzt.util.isBePlayer
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.PlayerDeathEvent
@@ -165,7 +166,7 @@ object GiveClock {
     @SubscribeEvent
     fun onPlayerSwapHandItems(event: PlayerSwapHandItemsEvent) {
         val player = event.player
-        if (!player.isSneaking) {
+        if (!player.isSneaking || player.isBePlayer()) {
             return
         }
 

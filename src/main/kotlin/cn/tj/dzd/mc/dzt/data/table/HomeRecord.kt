@@ -1,10 +1,10 @@
-package cn.tj.dzd.mc.dzt.teleport.table
+package cn.tj.dzd.mc.dzt.data.table
 
 import cn.tj.dzd.mc.dzt.data.DataSource
+import cn.tj.dzd.mc.dzt.data.cachedMapper
 import cn.tj.dzd.mc.dzt.util.Icon
 import taboolib.expansion.Key
 import taboolib.expansion.Length
-import taboolib.expansion.mapper
 import java.util.UUID
 
 data class HomeRecord(
@@ -20,4 +20,4 @@ data class HomeRecord(
     val y: Double,
     val z: Double,
 )
-val homeRecordMapper by mapper<HomeRecord>(DataSource)
+val homeRecordMapper by cachedMapper<HomeRecord>(DataSource)
