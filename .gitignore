@@ -16,3 +16,6 @@ bin
 /run/
 /.trae/
 /.lingma/
+
+### MACOS ###
+.DS_Store
