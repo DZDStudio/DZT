@@ -54,7 +54,7 @@ object Back {
     private fun openJava(player: Player, backs: List<DTPBack>) {
         player.openMenu<PageableChest<DTPBack>>("§l§6死亡点") {
             rows(6)
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "R###M####",

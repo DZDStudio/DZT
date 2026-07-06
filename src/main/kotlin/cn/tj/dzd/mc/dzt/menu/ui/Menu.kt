@@ -53,7 +53,7 @@ object Menu {
         pl.openMenu<Chest>(TextLogo) {
             rows(5)
 
-            hidePlayerInventory()
+            virtualize()
 
             map(
                 "####I####",
