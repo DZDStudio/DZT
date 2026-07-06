@@ -1,4 +1,4 @@
-package cn.tj.dzd.mc.dzt
+package cn.tj.dzd.mc.dzt.util
 
 import kotlinx.serialization.json.Json
 
