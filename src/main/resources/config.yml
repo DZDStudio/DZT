@@ -5,3 +5,13 @@ database:
   user: mc
   password: 114514
   database: mc
+
+redis:
+  enable: true
+  host: 127.0.0.1
+  port: 6379
+  user:
+  password:
+  connect: 32
+  timeout: 1000
+  reconnectDelay: 1000
