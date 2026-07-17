@@ -20,6 +20,7 @@ import taboolib.platform.util.buildItem
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.math.BigDecimal
 import java.util.concurrent.CompletableFuture
 
 object MoneyUI {
@@ -38,10 +39,11 @@ object MoneyUI {
             val uuid = uniqueId
             val bedrockPlayer = isBePlayer()
             val target = this
+            val balance = MoneyService.getBalance(this)
 
             CompletableFuture.supplyAsync {
                 MoneyViewData(
-                    balance = MoneyService.getBalance(uuid),
+                    balance = balance,
                     records = MoneyService.getRecords(uuid)
                 )
             }.whenComplete { data, error ->
@@ -81,7 +83,7 @@ object MoneyUI {
             set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
             set('M', buildItem(XMaterial.EMERALD) {
                 name = "§l§6经济流水"
-                lore += "§7当前余额: §6${data.balance} §e弟弟币"
+                lore += "§7当前余额: §6${formatBalance(data.balance)} §e弟弟币"
                 lore += "§7最多显示最近 ${data.records.size} 条流水"
             })
             set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回主菜单" }) {
@@ -117,7 +119,7 @@ object MoneyUI {
             .title("§l§6经济流水")
             .content(
                 buildString {
-                    append("§7当前余额: §6${data.balance} §e弟弟币")
+                    append("§7当前余额: §6${formatBalance(data.balance)} §e弟弟币")
                     if (data.records.isEmpty()) {
                         append("\n§7暂无流水记录。")
                     } else {
@@ -188,6 +190,10 @@ object MoneyUI {
         return TIME_FORMATTER.format(Instant.ofEpochMilli(time))
     }
 
+    private fun formatBalance(balance: Double): String {
+        return BigDecimal.valueOf(balance).stripTrailingZeros().toPlainString()
+    }
+
     private val MoneyRecord.color: String
         get() = when (type) {
             MoneyRecordType.IN -> "§a"
@@ -208,6 +214,6 @@ object MoneyUI {
 }
 
 private data class MoneyViewData(
-    val balance: Int,
+    val balance: Double,
     val records: List<MoneyRecord>,
 )

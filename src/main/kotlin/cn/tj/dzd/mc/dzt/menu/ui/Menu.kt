@@ -4,10 +4,12 @@ import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
 import cn.tj.dzd.mc.dzt.money.ui.MoneyUI
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaPerformCommand
+import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
 import cn.tj.dzd.mc.dzt.util.sendForm
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerQuitEvent
+import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
 import org.geysermc.cumulus.util.FormImage
 import taboolib.common.function.throttle
@@ -60,7 +62,7 @@ object Menu {
                 "####I####",
                 "#       #",
                 "#  T E  #",
-                "#       #",
+                "#   S   #",
                 "#########"
             )
             set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) {
@@ -85,14 +87,23 @@ object Menu {
             }) {
                 MoneyUI.openMoneyUI(pl)
             }
+
+            set('S', buildItem(XMaterial.WITHER_SKELETON_SKULL) {
+                name = "§l§c自杀"
+                lore += "§7结束当前生命"
+            }) {
+                openJavaSuicideConfirmation(pl)
+            }
         }
     }
+
     fun be(pl: Player) {
         val fm = SimpleForm.builder()
             .title(TextLogo)
             .button("传送", FormImage.Type.PATH, "textures/ui/csb_purchase_warning.png")
             .button("经济", FormImage.Type.PATH, "textures/items/emerald.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
+            .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
             .validResultHandler { res ->
                 val id = res.clickedButtonId()
 
@@ -100,8 +111,65 @@ object Menu {
                     0 -> pl.openTeleport()
                     1 -> MoneyUI.openMoneyUI(pl)
                     2 -> pl.foliaPerformCommand("geyser advancements")
+                    3 -> openBedrockSuicideConfirmation(pl)
                 }
             }
         pl.sendForm(fm)
+    }
+
+    private fun openJavaSuicideConfirmation(player: Player) {
+        player.openMenu<Chest>("§l§c确认自杀") {
+            rows(3)
+            virtualize()
+
+            map(
+                "#########",
+                "#  Y N  #",
+                "#########"
+            )
+
+            onClick(lock = true) {}
+            set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " })
+            set('Y', buildItem(XMaterial.REDSTONE_BLOCK) {
+                name = "§l§c确认自杀"
+                lore += "§7点击后立即死亡"
+            }) {
+                player.suicide()
+            }
+            set('N', buildItem(XMaterial.LIME_WOOL) {
+                name = "§l§a取消"
+                lore += "§7返回主菜单"
+            }) {
+                player.openMenu()
+            }
+        }
+    }
+
+    private fun openBedrockSuicideConfirmation(player: Player) {
+        player.sendForm(
+            ModalForm.builder()
+                .title("§l§c确认自杀")
+                .content("确认结束当前生命？")
+                .button1("确认自杀")
+                .button2("取消")
+                .validResultHandler { response ->
+                    if (response.clickedButtonId() == 0) {
+                        player.suicide()
+                    } else {
+                        player.openMenu()
+                    }
+                }
+        )
+    }
+
+    /**
+     * 在玩家所属实体线程结束玩家当前生命。
+     */
+    private fun Player.suicide() {
+        foliaRun {
+            if (!isDead) {
+                health = 0.0
+            }
+        }
     }
 }

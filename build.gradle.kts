@@ -25,6 +25,7 @@ taboolib {
         desc("DZDGame 服务器核心插件")
         load("STARTUP")
         dependencies {
+            name("Vault")
             name("Geyser-Spigot")
             name("floodgate")
         }
