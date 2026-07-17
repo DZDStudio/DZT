@@ -1,6 +1,6 @@
 package cn.tj.dzd.mc.dzt.sidebar
 
-import cn.tj.dzd.mc.dzt.money.MoneyService
+import cn.tj.dzd.mc.dzt.economy.ServiceEconomy
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
@@ -16,6 +16,10 @@ import taboolib.common.platform.function.severe
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.service.PlatformExecutor
 import java.math.BigDecimal
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -24,10 +28,14 @@ object Sidebar {
     private const val OBJECTIVE_NAME = "dzt_sidebar"
     private const val PLAYER_SYNC_PERIOD_TICKS = 20L
     private const val UPDATE_PERIOD_TICKS = 100L
+    private val beijingZone: ZoneId = ZoneId.of("Asia/Shanghai")
+    private val sidebarTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
     private var playerSyncTask: PlatformExecutor.PlatformTask? = null
     private val sidebarTasks = ConcurrentHashMap<UUID, PlatformExecutor.PlatformTask>()
     private val sidebarStates = ConcurrentHashMap<UUID, PacketSidebarState>()
+    private val balanceRequests = ConcurrentHashMap.newKeySet<UUID>()
+    private val reportedBalanceFailures = ConcurrentHashMap.newKeySet<UUID>()
     private val lineEntries = listOf("§0", "§1", "§2", "§3", "§4", "§5", "§6", "§7", "§8", "§9")
 
     /**
@@ -57,6 +65,8 @@ object Sidebar {
         sidebarTasks.values.forEach { it.cancel() }
         sidebarTasks.clear()
         sidebarStates.clear()
+        balanceRequests.clear()
+        reportedBalanceFailures.clear()
     }
 
     /**
@@ -75,6 +85,8 @@ object Sidebar {
         val uuid = event.player.uniqueId
         sidebarTasks.remove(uuid)?.cancel()
         sidebarStates.remove(uuid)
+        balanceRequests.remove(uuid)
+        reportedBalanceFailures.remove(uuid)
     }
 
     private fun syncOnlinePlayers() {
@@ -86,6 +98,8 @@ object Sidebar {
             .forEach {
                 sidebarTasks.remove(it)?.cancel()
                 sidebarStates.remove(it)
+                balanceRequests.remove(it)
+                reportedBalanceFailures.remove(it)
             }
 
         onlinePlayers.forEach { player ->
@@ -109,47 +123,71 @@ object Sidebar {
             sidebarTasks.remove(uuid)?.cancel()
             return
         }
+        if (!balanceRequests.add(uuid)) {
+            return
+        }
 
         runCatching {
-            player.foliaRun {
-                val balance = MoneyService.getBalance(this)
-                updateSidebar(balance)
-            }.whenComplete { success, error ->
-                if (error != null) {
-                    sidebarTasks.remove(uuid)?.cancel()
-                    severe(
-                        "侧边栏刷新失败。",
-                        "玩家 UUID: $uuid",
-                        error.stackTraceToString()
-                    )
+            ServiceEconomy.getBalance(uuid).whenComplete { balance, balanceError ->
+                balanceRequests.remove(uuid)
+                if (!player.isOnline) {
                     return@whenComplete
                 }
+                if (balanceError != null && reportedBalanceFailures.add(uuid)) {
+                    severe(
+                        "ServiceIO 余额查询失败，侧边栏将暂时隐藏余额。",
+                        "玩家 UUID: $uuid",
+                        balanceError.stackTraceToString(),
+                    )
+                } else if (balanceError == null) {
+                    reportedBalanceFailures.remove(uuid)
+                }
 
-                if (!success) {
-                    sidebarTasks.remove(uuid)?.cancel()
+                player.foliaRun {
+                    updateSidebar(balance?.amount)
+                }.whenComplete { success, error ->
+                    if (error != null) {
+                        sidebarTasks.remove(uuid)?.cancel()
+                        severe(
+                            "侧边栏刷新失败。",
+                            "玩家 UUID: $uuid",
+                            error.stackTraceToString()
+                        )
+                        return@whenComplete
+                    }
+
+                    if (!success) {
+                        sidebarTasks.remove(uuid)?.cancel()
+                    }
                 }
             }
         }.onFailure {
+            balanceRequests.remove(uuid)
             sidebarTasks.remove(uuid)?.cancel()
             throw it
         }
     }
 
-    private fun Player.updateSidebar(balance: Double) {
+    private fun Player.updateSidebar(balance: BigDecimal?) {
         val sidebarLines = buildSidebarLines(balance)
         val state = sidebarStates.computeIfAbsent(uniqueId) { PacketSidebarState() }
         PacketSidebar.update(this, OBJECTIVE_NAME, TextLogo, sidebarLines, lineEntries, state)
     }
 
-    private fun Player.buildSidebarLines(balance: Double): List<String> {
+    private fun Player.buildSidebarLines(balance: BigDecimal?): List<String> {
         val bedrockPlayer = isBePlayer()
         val ping = networkPing().coerceAtLeast(0)
+        val tps = currentRegionTps()
+        val regionUtilisation = FoliaRegionMetrics.currentOneMinuteUtilisation()
 
         return buildList {
             add("")
-            add("§e弟弟币: §6${formatBalance(balance)}")
+            add("§eDDB: §6${formatBalance(balance)}")
             add("§ePing: §a${ping}ms${if (bedrockPlayer) " §7BE" else ""}")
+            add("§eTPS: ${formatTps(tps)}")
+            add("§eUsage: ${formatRegionUtilisation(regionUtilisation)}")
             add("")
+            add("§f${beijingTime()}")
             add("§7QQ: $SERVER_QQ_GROUP")
 
             if (!bedrockPlayer) {
@@ -158,7 +196,43 @@ object Sidebar {
         }
     }
 
-    private fun formatBalance(balance: Double): String {
-        return BigDecimal.valueOf(balance).stripTrailingZeros().toPlainString()
+    private fun formatBalance(balance: BigDecimal?): String {
+        return balance?.let(ServiceEconomy::formatAmount) ?: "--"
+    }
+
+    /**
+     * 读取当前执行线程所在区域的 1 分钟 TPS。
+     *
+     * Folia 会根据当前区域线程返回对应区域的 TPS，因此该方法必须在玩家实体线程中调用。
+     * 普通 Paper 环境下返回全服 TPS。
+     */
+    private fun currentRegionTps(): Double {
+        return Bukkit.getTPS().firstOrNull()?.coerceAtLeast(0.0) ?: 0.0
+    }
+
+    private fun formatTps(tps: Double): String {
+        val color = when {
+            tps >= 18.0 -> "§a"
+            tps >= 15.0 -> "§e"
+            else -> "§c"
+        }
+        return "$color${String.format(Locale.ROOT, "%.2f", tps)}"
+    }
+
+    private fun formatRegionUtilisation(utilisation: Double?): String {
+        if (utilisation == null) {
+            return "§7N/A"
+        }
+
+        val color = when {
+            utilisation < 0.6 -> "§a"
+            utilisation < 0.8 -> "§e"
+            else -> "§c"
+        }
+        return "$color${String.format(Locale.ROOT, "%.1f", utilisation * 100.0)}%"
+    }
+
+    private fun beijingTime(): String {
+        return LocalTime.now(beijingZone).format(sidebarTimeFormatter)
     }
 }

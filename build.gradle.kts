@@ -1,14 +1,16 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import io.izzel.taboolib.gradle.*
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
+import xyz.jpenilla.runpaper.task.RunServer
 
 
 plugins {
     java
-    id("io.izzel.taboolib") version "2.0.37"
+    id("io.izzel.taboolib") version "2.0.38"
     id("org.jetbrains.kotlin.jvm") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
     id("xyz.jpenilla.run-paper") version "3.0.2"
@@ -25,7 +27,7 @@ taboolib {
         desc("DZDGame 服务器核心插件")
         load("STARTUP")
         dependencies {
-            name("Vault")
+            name("ServiceIO")
             name("Geyser-Spigot")
             name("floodgate")
         }
@@ -46,17 +48,22 @@ repositories {
     mavenCentral()
     maven {
         url = uri("https://repo.opencollab.dev/main/")
-        maven {
-            name = "papermc"
-            url = uri("https://repo.papermc.io/repository/maven-public/")
-        }
+    }
+    maven {
+        name = "papermc"
+        url = uri("https://repo.papermc.io/repository/maven-public/")
+    }
+    maven {
+        name = "thenextlvlSnapshots"
+        url = uri("https://repo.thenextlvl.net/snapshots")
     }
 }
 
 dependencies {
     compileOnly(kotlin("stdlib"))
 
-    compileOnly("io.papermc.paper:paper-api:1.21.9-rc1-R0.1-SNAPSHOT")
+    compileOnly("dev.folia:folia-api:[26.1.2.build,)")
+    compileOnly("net.thenextlvl:service-io:3.0.0-pre11")
 
     compileOnly("org.geysermc.geyser:api:2.9.5-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
@@ -73,14 +80,23 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
-        jvmTarget.set(JVM_21)
+        jvmTarget.set(JVM_25)
         freeCompilerArgs.add("-Xjvm-default=all")
     }
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+val javaToolchainService = project.extensions.getByType(JavaToolchainService::class.java)
+val java25Launcher = javaToolchainService.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(25))
+}
+
+tasks.withType<RunServer>().configureEach {
+    javaLauncher.set(java25Launcher)
 }
 
 runPaper.folia.registerTask()
