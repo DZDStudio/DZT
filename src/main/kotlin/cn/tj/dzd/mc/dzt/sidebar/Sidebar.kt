@@ -16,6 +16,10 @@ import taboolib.common.platform.function.severe
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.service.PlatformExecutor
 import java.math.BigDecimal
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -24,6 +28,8 @@ object Sidebar {
     private const val OBJECTIVE_NAME = "dzt_sidebar"
     private const val PLAYER_SYNC_PERIOD_TICKS = 20L
     private const val UPDATE_PERIOD_TICKS = 100L
+    private val beijingZone: ZoneId = ZoneId.of("Asia/Shanghai")
+    private val sidebarTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
     private var playerSyncTask: PlatformExecutor.PlatformTask? = null
     private val sidebarTasks = ConcurrentHashMap<UUID, PlatformExecutor.PlatformTask>()
@@ -144,12 +150,17 @@ object Sidebar {
     private fun Player.buildSidebarLines(balance: Double): List<String> {
         val bedrockPlayer = isBePlayer()
         val ping = networkPing().coerceAtLeast(0)
+        val tps = currentRegionTps()
+        val regionUtilisation = FoliaRegionMetrics.currentOneMinuteUtilisation()
 
         return buildList {
             add("")
             add("§e弟弟币: §6${formatBalance(balance)}")
             add("§ePing: §a${ping}ms${if (bedrockPlayer) " §7BE" else ""}")
+            add("§eTPS: ${formatTps(tps)}")
+            add("§e区域占用: ${formatRegionUtilisation(regionUtilisation)}")
             add("")
+            add("§f${beijingTime()}")
             add("§7QQ: $SERVER_QQ_GROUP")
 
             if (!bedrockPlayer) {
@@ -160,5 +171,41 @@ object Sidebar {
 
     private fun formatBalance(balance: Double): String {
         return BigDecimal.valueOf(balance).stripTrailingZeros().toPlainString()
+    }
+
+    /**
+     * 读取当前执行线程所在区域的 1 分钟 TPS。
+     *
+     * Folia 会根据当前区域线程返回对应区域的 TPS，因此该方法必须在玩家实体线程中调用。
+     * 普通 Paper 环境下返回全服 TPS。
+     */
+    private fun currentRegionTps(): Double {
+        return Bukkit.getTPS().firstOrNull()?.coerceAtLeast(0.0) ?: 0.0
+    }
+
+    private fun formatTps(tps: Double): String {
+        val color = when {
+            tps >= 18.0 -> "§a"
+            tps >= 15.0 -> "§e"
+            else -> "§c"
+        }
+        return "$color${String.format(Locale.ROOT, "%.2f", tps)}"
+    }
+
+    private fun formatRegionUtilisation(utilisation: Double?): String {
+        if (utilisation == null) {
+            return "§7N/A"
+        }
+
+        val color = when {
+            utilisation < 0.6 -> "§a"
+            utilisation < 0.8 -> "§e"
+            else -> "§c"
+        }
+        return "$color${String.format(Locale.ROOT, "%.1f", utilisation * 100.0)}%"
+    }
+
+    private fun beijingTime(): String {
+        return LocalTime.now(beijingZone).format(sidebarTimeFormatter)
     }
 }
