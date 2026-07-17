@@ -8,7 +8,7 @@ import org.bukkit.entity.Player
 
 private const val TEXT_INPUT_KEY = "text"
 private const val DEFAULT_TITLE = "请输入文字"
-private const val INPUT_LABEL = "内容"
+private const val DEFAULT_INPUT_LABEL = "内容"
 private const val SUBMIT_LABEL = "确定"
 private const val CANCEL_LABEL = "取消"
 
@@ -31,14 +31,16 @@ object PaperDialogTextUI {
      *
      * @param title 对话框标题。
      * @param defaultContent 输入框默认内容。
+     * @param inputLabel 输入框上方显示的名称。
      * @param onSubmit 玩家点击确认按钮后的文本回调。
      */
     fun create(
         title: String = DEFAULT_TITLE,
         defaultContent: String = "",
+        inputLabel: String = DEFAULT_INPUT_LABEL,
         onSubmit: PaperDialogTextCallback,
     ): Dialog {
-        return create(paperDialogTextComponent(title), defaultContent, onSubmit)
+        return create(paperDialogTextComponent(title), defaultContent, inputLabel, onSubmit)
     }
 
     /**
@@ -46,11 +48,13 @@ object PaperDialogTextUI {
      *
      * @param title 对话框标题组件。
      * @param defaultContent 输入框默认内容。
+     * @param inputLabel 输入框上方显示的名称。
      * @param onSubmit 玩家点击确认按钮后的文本回调。
      */
     fun create(
         title: ComponentLike,
         defaultContent: String = "",
+        inputLabel: String = DEFAULT_INPUT_LABEL,
         onSubmit: PaperDialogTextCallback,
     ): Dialog {
         return paperDialog(title) {
@@ -58,7 +62,7 @@ object PaperDialogTextUI {
             inputs {
                 text(
                     key = TEXT_INPUT_KEY,
-                    label = INPUT_LABEL,
+                    label = inputLabel,
                     initial = defaultContent,
                 )
             }
@@ -84,15 +88,17 @@ object PaperDialogTextUI {
      * @param player 目标玩家。
      * @param title 对话框标题。
      * @param defaultContent 输入框默认内容。
+     * @param inputLabel 输入框上方显示的名称。
      * @param onSubmit 玩家点击确认按钮后的文本回调。
      */
     fun open(
         player: Player,
         title: String = DEFAULT_TITLE,
         defaultContent: String = "",
+        inputLabel: String = DEFAULT_INPUT_LABEL,
         onSubmit: PaperDialogTextCallback,
     ): Dialog {
-        return player.openPaperDialogTextUI(title, defaultContent, onSubmit)
+        return player.openPaperDialogTextUI(title, defaultContent, inputLabel, onSubmit)
     }
 
     /**
@@ -101,15 +107,17 @@ object PaperDialogTextUI {
      * @param player 目标玩家。
      * @param title 对话框标题组件。
      * @param defaultContent 输入框默认内容。
+     * @param inputLabel 输入框上方显示的名称。
      * @param onSubmit 玩家点击确认按钮后的文本回调。
      */
     fun open(
         player: Player,
         title: ComponentLike,
         defaultContent: String = "",
+        inputLabel: String = DEFAULT_INPUT_LABEL,
         onSubmit: PaperDialogTextCallback,
     ): Dialog {
-        return player.openPaperDialogTextUI(title, defaultContent, onSubmit)
+        return player.openPaperDialogTextUI(title, defaultContent, inputLabel, onSubmit)
     }
 }
 
@@ -118,14 +126,16 @@ object PaperDialogTextUI {
  *
  * @param title 对话框标题。
  * @param defaultContent 输入框默认内容。
+ * @param inputLabel 输入框上方显示的名称。
  * @param onSubmit 玩家点击确认按钮后的文本回调。
  */
 fun Player.openPaperDialogTextUI(
     title: String = DEFAULT_TITLE,
     defaultContent: String = "",
+    inputLabel: String = DEFAULT_INPUT_LABEL,
     onSubmit: PaperDialogTextCallback,
 ): Dialog {
-    return openPaperDialogTextUI(paperDialogTextComponent(title), defaultContent, onSubmit)
+    return openPaperDialogTextUI(paperDialogTextComponent(title), defaultContent, inputLabel, onSubmit)
 }
 
 /**
@@ -133,14 +143,16 @@ fun Player.openPaperDialogTextUI(
  *
  * @param title 对话框标题组件。
  * @param defaultContent 输入框默认内容。
+ * @param inputLabel 输入框上方显示的名称。
  * @param onSubmit 玩家点击确认按钮后的文本回调。
  */
 fun Player.openPaperDialogTextUI(
     title: ComponentLike,
     defaultContent: String = "",
+    inputLabel: String = DEFAULT_INPUT_LABEL,
     onSubmit: PaperDialogTextCallback,
 ): Dialog {
-    val dialog = PaperDialogTextUI.create(title, defaultContent, onSubmit)
+    val dialog = PaperDialogTextUI.create(title, defaultContent, inputLabel, onSubmit)
     showDialog(dialog)
     return dialog
 }
@@ -150,14 +162,16 @@ fun Player.openPaperDialogTextUI(
  *
  * @param title 对话框标题。
  * @param defaultContent 输入框默认内容。
+ * @param inputLabel 输入框上方显示的名称。
  * @param onSubmit 玩家点击确认按钮后的文本回调。
  */
 fun Player.PaperDialogTextUI(
     title: String = DEFAULT_TITLE,
     defaultContent: String = "",
+    inputLabel: String = DEFAULT_INPUT_LABEL,
     onSubmit: PaperDialogTextCallback,
 ): Dialog {
-    return openPaperDialogTextUI(title, defaultContent, onSubmit)
+    return openPaperDialogTextUI(title, defaultContent, inputLabel, onSubmit)
 }
 
 /**
@@ -165,12 +179,14 @@ fun Player.PaperDialogTextUI(
  *
  * @param title 对话框标题组件。
  * @param defaultContent 输入框默认内容。
+ * @param inputLabel 输入框上方显示的名称。
  * @param onSubmit 玩家点击确认按钮后的文本回调。
  */
 fun Player.PaperDialogTextUI(
     title: ComponentLike,
     defaultContent: String = "",
+    inputLabel: String = DEFAULT_INPUT_LABEL,
     onSubmit: PaperDialogTextCallback,
 ): Dialog {
-    return openPaperDialogTextUI(title, defaultContent, onSubmit)
+    return openPaperDialogTextUI(title, defaultContent, inputLabel, onSubmit)
 }

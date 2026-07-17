@@ -1,20 +1,16 @@
 package cn.tj.dzd.mc.dzt.teleport.ui
 
-import cn.tj.dzd.mc.dzt.util.avatarUrl
+import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelectUI
 import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.foliaTeleport
 import cn.tj.dzd.mc.dzt.util.isBePlayer
 import cn.tj.dzd.mc.dzt.util.sendForm
-import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
-import org.geysermc.cumulus.form.SimpleForm
-import org.geysermc.cumulus.util.FormImage
 import taboolib.library.xseries.XMaterial
 import taboolib.module.ui.openMenu
 import taboolib.module.ui.type.Chest
-import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.buildItem
 
 object TPA {
@@ -24,88 +20,19 @@ object TPA {
      * 会根据玩家客户端类型自动选择 Java 版箱子菜单或基岩版表单菜单。
      */
     fun openTPAUI(player: Player) {
-        val targets = Bukkit.getOnlinePlayers()
-            .filter { it.uniqueId != player.uniqueId }
-            .sortedBy { it.name.lowercase() }
-
-        if (player.isBePlayer()) {
-            openBedrock(player, targets)
-        } else {
-            player.foliaRun {
-                openJava(this, targets)
+        OnlinePlayerSelectUI.open(
+            player = player,
+            title = "§l§6玩家传送",
+            description = "请选择要传送到的玩家。",
+            selectLore = "§7点击发送传送请求",
+            backLabel = "§l§e返回传送菜单",
+            onBack = {
+                Teleport.run { openTeleport() }
+            },
+            onSelect = { target ->
+                sendRequest(this, target)
             }
-        }
-    }
-
-    private fun openJava(player: Player, targets: List<Player>) {
-        player.openMenu<PageableChest<Player>>("§l§6玩家传送") {
-            rows(6)
-            virtualize()
-
-            map(
-                "R###M####",
-                "#@@@@@@@#",
-                "#@@@@@@@#",
-                "#@@@@@@@#",
-                "#@@@@@@@#",
-                "###<#>###"
-            )
-
-            onClick(lock = true) {}
-            set('#', XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " }
-            set('M', XMaterial.YELLOW_STAINED_GLASS_PANE) { name = "§l§6玩家传送" }
-            set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回传送菜单" }) {
-                Teleport.run { player.openTeleport() }
-            }
-
-            slotsBy('@')
-            elements { targets }
-            onGenerate { _, target, _, _ ->
-                buildItem(XMaterial.PLAYER_HEAD) {
-                    name = "§6${target.name}"
-                    lore += "§7点击发送传送请求"
-                    skullOwner = target.name
-                }
-            }
-            onClick { _, target ->
-                sendRequest(player, target)
-                player.foliaCloseInventory()
-            }
-
-            setPreviousPage(48) { _, hasPrevious ->
-                buildItem(if (hasPrevious) XMaterial.ARROW else XMaterial.GRAY_STAINED_GLASS_PANE) {
-                    name = if (hasPrevious) "§a上一页" else "§7已经是第一页"
-                }
-            }
-            setNextPage(50) { _, hasNext ->
-                buildItem(if (hasNext) XMaterial.ARROW else XMaterial.GRAY_STAINED_GLASS_PANE) {
-                    name = if (hasNext) "§a下一页" else "§7已经是最后一页"
-                }
-            }
-        }
-    }
-
-    private fun openBedrock(player: Player, targets: List<Player>) {
-        val form = SimpleForm.builder()
-            .title("§l§6玩家传送")
-            .content(if (targets.isEmpty()) "当前没有其他在线玩家。" else "请选择要传送到的玩家。")
-            .button("返回传送菜单", FormImage.Type.PATH, "textures/ui/box_ride.png")
-
-        targets.forEach { target ->
-            form.button(target.name, FormImage.Type.URL, target.avatarUrl())
-        }
-
-        form.validResultHandler { response ->
-            val clicked = response.clickedButtonId()
-            if (clicked == 0) {
-                Teleport.run { player.openTeleport() }
-                return@validResultHandler
-            }
-
-            val target = targets.getOrNull(clicked - 1) ?: return@validResultHandler
-            sendRequest(player, target)
-        }
-        player.sendForm(form)
+        )
     }
 
     private fun sendRequest(requester: Player, target: Player) {

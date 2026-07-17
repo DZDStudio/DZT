@@ -1,7 +1,7 @@
 package cn.tj.dzd.mc.dzt.menu.ui
 
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
-import cn.tj.dzd.mc.dzt.money.ui.MoneyUI
+import cn.tj.dzd.mc.dzt.economy.ui.TransferUI
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaPerformCommand
 import cn.tj.dzd.mc.dzt.util.foliaRun
@@ -82,10 +82,10 @@ object Menu {
             }
 
             set('E', buildItem(XMaterial.EMERALD) {
-                name = "经济"
-                lore += "查看余额与流水记录"
+                name = "转账"
+                lore += "向在线玩家转账"
             }) {
-                MoneyUI.openMoneyUI(pl)
+                TransferUI.openTransferUI(pl)
             }
 
             set('S', buildItem(XMaterial.WITHER_SKELETON_SKULL) {
@@ -101,7 +101,7 @@ object Menu {
         val fm = SimpleForm.builder()
             .title(TextLogo)
             .button("传送", FormImage.Type.PATH, "textures/ui/csb_purchase_warning.png")
-            .button("经济", FormImage.Type.PATH, "textures/items/emerald.png")
+            .button("转账", FormImage.Type.PATH, "textures/items/emerald.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
             .validResultHandler { res ->
@@ -109,7 +109,7 @@ object Menu {
 
                 when (id) {
                     0 -> pl.openTeleport()
-                    1 -> MoneyUI.openMoneyUI(pl)
+                    1 -> TransferUI.openTransferUI(pl)
                     2 -> pl.foliaPerformCommand("geyser advancements")
                     3 -> openBedrockSuicideConfirmation(pl)
                 }
