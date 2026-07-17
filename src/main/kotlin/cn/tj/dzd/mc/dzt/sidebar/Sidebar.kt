@@ -15,6 +15,7 @@ import taboolib.common.platform.event.SubscribeEvent
 import taboolib.common.platform.function.severe
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.service.PlatformExecutor
+import java.math.BigDecimal
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -110,8 +111,8 @@ object Sidebar {
         }
 
         runCatching {
-            val balance = MoneyService.getBalance(uuid)
             player.foliaRun {
+                val balance = MoneyService.getBalance(this)
                 updateSidebar(balance)
             }.whenComplete { success, error ->
                 if (error != null) {
@@ -134,19 +135,19 @@ object Sidebar {
         }
     }
 
-    private fun Player.updateSidebar(balance: Int) {
+    private fun Player.updateSidebar(balance: Double) {
         val sidebarLines = buildSidebarLines(balance)
         val state = sidebarStates.computeIfAbsent(uniqueId) { PacketSidebarState() }
         PacketSidebar.update(this, OBJECTIVE_NAME, TextLogo, sidebarLines, lineEntries, state)
     }
 
-    private fun Player.buildSidebarLines(balance: Int): List<String> {
+    private fun Player.buildSidebarLines(balance: Double): List<String> {
         val bedrockPlayer = isBePlayer()
         val ping = networkPing().coerceAtLeast(0)
 
         return buildList {
             add("")
-            add("§e弟弟币: §6$balance")
+            add("§e弟弟币: §6${formatBalance(balance)}")
             add("§ePing: §a${ping}ms${if (bedrockPlayer) " §7BE" else ""}")
             add("")
             add("§7QQ: $SERVER_QQ_GROUP")
@@ -155,5 +156,9 @@ object Sidebar {
                 add("§7Shift+F 打开菜单")
             }
         }
+    }
+
+    private fun formatBalance(balance: Double): String {
+        return BigDecimal.valueOf(balance).stripTrailingZeros().toPlainString()
     }
 }
