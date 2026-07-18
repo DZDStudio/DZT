@@ -15,3 +15,6 @@ redis:
   connect: 32
   timeout: 1000
   reconnectDelay: 1000
+
+preferred-route:
+  ip: 127.0.0.1
