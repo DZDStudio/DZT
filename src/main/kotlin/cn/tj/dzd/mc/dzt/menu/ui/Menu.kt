@@ -2,6 +2,7 @@ package cn.tj.dzd.mc.dzt.menu.ui
 
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
 import cn.tj.dzd.mc.dzt.economy.ui.TransferUI
+import cn.tj.dzd.mc.dzt.title.ui.TitleUI
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaPerformCommand
 import cn.tj.dzd.mc.dzt.util.foliaRun
@@ -61,7 +62,7 @@ object Menu {
             map(
                 "####I####",
                 "#       #",
-                "#  T E  #",
+                "# T E C #",
                 "#   S   #",
                 "#########"
             )
@@ -88,6 +89,13 @@ object Menu {
                 TransferUI.openTransferUI(pl)
             }
 
+            set('C', buildItem(XMaterial.NAME_TAG) {
+                name = "称号"
+                lore += "选择已拥有的称号"
+            }) {
+                TitleUI.open(pl)
+            }
+
             set('S', buildItem(XMaterial.WITHER_SKELETON_SKULL) {
                 name = "§l§c自杀"
                 lore += "§7结束当前生命"
@@ -102,6 +110,7 @@ object Menu {
             .title(TextLogo)
             .button("传送", FormImage.Type.PATH, "textures/ui/csb_purchase_warning.png")
             .button("转账", FormImage.Type.PATH, "textures/items/emerald.png")
+            .button("称号", FormImage.Type.PATH, "textures/items/name_tag.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
             .validResultHandler { res ->
@@ -110,8 +119,9 @@ object Menu {
                 when (id) {
                     0 -> pl.openTeleport()
                     1 -> TransferUI.openTransferUI(pl)
-                    2 -> pl.foliaPerformCommand("geyser advancements")
-                    3 -> openBedrockSuicideConfirmation(pl)
+                    2 -> TitleUI.open(pl)
+                    3 -> pl.foliaPerformCommand("geyser advancements")
+                    4 -> openBedrockSuicideConfirmation(pl)
                 }
             }
         pl.sendForm(fm)
