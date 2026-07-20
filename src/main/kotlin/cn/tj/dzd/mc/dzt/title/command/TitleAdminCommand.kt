@@ -13,7 +13,7 @@ import taboolib.common.platform.command.CommandHeader
 import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.mainCommand
 import taboolib.common.platform.command.subCommand
-import taboolib.common.platform.function.onlinePlayers
+import taboolib.platform.util.onlinePlayers
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -205,11 +205,11 @@ object TitleAdminCommand {
         val normalized = input.trim()
         val uuid = runCatching { UUID.fromString(normalized) }.getOrNull()
         if (uuid != null) {
-            val onlineName = onlinePlayers().firstOrNull { it.uniqueId == uuid }?.name
+            val onlineName = onlinePlayers.firstOrNull { it.uniqueId == uuid }?.name
             return CommandTarget(uuid, onlineName ?: uuid.toString())
         }
 
-        val player = onlinePlayers().firstOrNull { it.name.equals(normalized, ignoreCase = true) }
+        val player = onlinePlayers.firstOrNull { it.name.equals(normalized, ignoreCase = true) }
         if (player == null) {
             sendLines("§c未找到在线玩家[$normalized]；管理离线玩家请使用 UUID。")
             return null
@@ -260,7 +260,7 @@ object TitleAdminCommand {
     }
 
     private fun onlinePlayerNames(): List<String> {
-        return onlinePlayers().map { it.name }.sortedWith(String.CASE_INSENSITIVE_ORDER)
+        return onlinePlayers.map { it.name }.sortedWith(String.CASE_INSENSITIVE_ORDER)
     }
 
     private fun String.translateLegacyColorCodes(): String {

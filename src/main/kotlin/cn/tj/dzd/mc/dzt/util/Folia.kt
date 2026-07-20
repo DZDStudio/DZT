@@ -1,11 +1,13 @@
 package cn.tj.dzd.mc.dzt.util
 
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause
 import taboolib.platform.util.bukkitPlugin
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -28,6 +30,21 @@ fun Player.foliaRun(block: Player.() -> Unit): CompletableFuture<Boolean> {
         block()
         true
     }
+}
+
+/**
+ * 通过 UUID 在在线玩家的 Folia 实体线程执行操作。
+ *
+ * TabooLib 没有 UUID 到强类型 [Player] 的等价查找接口，因此该方法集中保留必要的
+ * Bukkit 查找边界。查找结果不会在调用方线程读取实体状态，只会立即用于调度 [block]。
+ *
+ * @param uuid 目标玩家 UUID。
+ * @param block 要在目标玩家实体线程执行的操作。
+ * @return 操作是否成功进入并完成执行；目标离线或实体调度器失效时完成为 false。
+ */
+fun runForOnlinePlayer(uuid: UUID, block: Player.() -> Unit): CompletableFuture<Boolean> {
+    val player = Bukkit.getPlayer(uuid) ?: return CompletableFuture.completedFuture(false)
+    return player.foliaRun(block)
 }
 
 /**
@@ -74,7 +91,7 @@ fun Player.foliaTeleport(
     pitch: Float = 0.65f,
 ): CompletableFuture<Boolean> {
     val targetLocation = location.clone()
-    if (targetLocation.world == null || !isOnline) {
+    if (targetLocation.world == null) {
         return CompletableFuture.completedFuture(false)
     }
 
@@ -229,11 +246,6 @@ fun Player.foliaSendMessage(message: Component): CompletableFuture<Boolean> {
 
 private fun <T> Player.foliaCall(fallback: T, block: Player.() -> T): CompletableFuture<T> {
     val result = CompletableFuture<T>()
-
-    if (!isOnline) {
-        result.complete(fallback)
-        return result
-    }
 
     val scheduledTask = scheduler.run(
         bukkitPlugin,

@@ -1,0 +1,99 @@
+categories:
+  ores:
+    name: "矿产"
+    java-icon: "minecraft:iron_ingot"
+    bedrock-icon: "textures/items/iron_ingot.png"
+    products:
+      coal:
+        name: "煤炭"
+        material: "minecraft:coal"
+        bedrock-icon: "textures/items/coal.png"
+        price: 40
+        daily-limit: 128
+      iron_ingot:
+        name: "铁锭"
+        material: "minecraft:iron_ingot"
+        bedrock-icon: "textures/items/iron_ingot.png"
+        price: 160
+        daily-limit: 64
+      copper_ingot:
+        name: "铜锭"
+        material: "minecraft:copper_ingot"
+        bedrock-icon: "textures/items/copper_ingot.png"
+        price: 80
+        daily-limit: 128
+      gold_ingot:
+        name: "金锭"
+        material: "minecraft:gold_ingot"
+        bedrock-icon: "textures/items/gold_ingot.png"
+        price: 240
+        daily-limit: 32
+      redstone:
+        name: "红石粉"
+        material: "minecraft:redstone"
+        bedrock-icon: "textures/items/redstone_dust.png"
+        price: 40
+        daily-limit: 32
+  wood:
+    name: "木材"
+    java-icon: "minecraft:oak_log"
+    bedrock-icon: "textures/blocks/log_oak.png"
+    products:
+      oak_log:
+        name: "橡木原木"
+        material: "minecraft:oak_log"
+        bedrock-icon: "textures/blocks/log_oak.png"
+        price: 40
+        daily-limit: 128
+  blocks:
+    name: "基础方块"
+    java-icon: "minecraft:cobblestone"
+    bedrock-icon: "textures/blocks/cobblestone.png"
+    products:
+      cobblestone:
+        name: "原石"
+        material: "minecraft:cobblestone"
+        bedrock-icon: "textures/blocks/cobblestone.png"
+        price: 10
+        daily-limit: 256
+      dirt:
+        name: "泥土"
+        material: "minecraft:dirt"
+        bedrock-icon: "textures/blocks/dirt.png"
+        price: 10
+        daily-limit: 256
+      sand:
+        name: "沙子"
+        material: "minecraft:sand"
+        bedrock-icon: "textures/blocks/sand.png"
+        price: 10
+        daily-limit: 128
+      gravel:
+        name: "砂砾"
+        material: "minecraft:gravel"
+        bedrock-icon: "textures/blocks/gravel.png"
+        price: 20
+        daily-limit: 64
+  food:
+    name: "食物"
+    java-icon: "minecraft:cooked_beef"
+    bedrock-icon: "textures/items/beef_cooked.png"
+    products:
+      cooked_beef:
+        name: "烤牛排"
+        material: "minecraft:cooked_beef"
+        bedrock-icon: "textures/items/beef_cooked.png"
+        price: 35
+        daily-limit: 64
+      bread:
+        name: "面包"
+        material: "minecraft:bread"
+        bedrock-icon: "textures/items/bread.png"
+        price: 25
+        daily-limit: 64
+      baked_potato:
+        name: "烤马铃薯"
+        material: "minecraft:baked_potato"
+        bedrock-icon: "textures/items/potato_baked.png"
+        price: 25
+        daily-limit: 64

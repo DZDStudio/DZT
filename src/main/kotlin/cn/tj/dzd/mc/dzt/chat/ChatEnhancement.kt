@@ -1,6 +1,6 @@
 package cn.tj.dzd.mc.dzt.chat
 
-import cn.tj.dzd.mc.dzt.title.TitleService
+import cn.tj.dzd.mc.dzt.title.TitleApi
 import cn.tj.dzd.mc.dzt.util.isBePlayer
 import cn.tj.dzd.mc.dzt.util.networkPing
 import io.papermc.paper.chat.ChatRenderer
@@ -31,7 +31,7 @@ object ChatEnhancement {
         val time = LocalTime.now(beijingZone).format(timeFormatter)
         val client = if (player.isBePlayer()) "BE" else "JE"
         val ping = player.networkPing().coerceAtLeast(0)
-        val title = TitleService.getCachedEquippedTitle(player.uniqueId)
+        val title = TitleApi.getCachedEquippedTitle(player.uniqueId)
         val titleComponent = title?.let {
             Component.text("[", NamedTextColor.YELLOW)
                 .append(legacySerializer.deserialize(it.displayName).colorIfAbsent(NamedTextColor.YELLOW))

@@ -1,10 +1,11 @@
 package cn.tj.dzd.mc.dzt.teleport.ui
 
+import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelection
 import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelectUI
 import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.foliaTeleport
-import cn.tj.dzd.mc.dzt.util.isBePlayer
+import cn.tj.dzd.mc.dzt.util.runForOnlinePlayer
 import cn.tj.dzd.mc.dzt.util.sendForm
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.ModalForm
@@ -35,23 +36,43 @@ object TPA {
         )
     }
 
-    private fun sendRequest(requester: Player, target: Player) {
-        if (!requester.isOnline || !target.isOnline) {
-            requester.sendTeleportError("玩家已离线。")
-            return
+    private fun sendRequest(requester: Player, target: OnlinePlayerSelection) {
+        requester.foliaRun {
+            val requesterSnapshot = TpaRequesterSnapshot(uniqueId, name)
+            sendRequestToTarget(requester, target, requesterSnapshot)
         }
+    }
 
-        requester.sendTeleportSuccess("已向 ${target.name} 发送传送请求。")
-        target.foliaRun {
-            if (isBePlayer()) {
-                openBedrockConfirm(requester, this)
+    private fun sendRequestToTarget(
+        requester: Player,
+        target: OnlinePlayerSelection,
+        requesterSnapshot: TpaRequesterSnapshot,
+    ) {
+        target.withOnlinePlayer {
+            requester.foliaRun {
+                sendTeleportSuccess("已向 ${target.name} 发送传送请求。")
+            }
+
+            if (target.isBedrock) {
+                openBedrockConfirm(requester, this, requesterSnapshot, target)
             } else {
-                openJavaConfirm(requester, this)
+                openJavaConfirm(requester, this, requesterSnapshot, target)
+            }
+        }.thenAccept { available ->
+            if (!available) {
+                runForOnlinePlayer(requesterSnapshot.uuid) {
+                    sendTeleportError("玩家已离线。")
+                }
             }
         }
     }
 
-    private fun openJavaConfirm(requester: Player, target: Player) {
+    private fun openJavaConfirm(
+        requester: Player,
+        target: Player,
+        requesterSnapshot: TpaRequesterSnapshot,
+        targetSnapshot: OnlinePlayerSelection,
+    ) {
         var handled = false
         target.openMenu<Chest>("§l§6请求传送") {
             rows(3)
@@ -66,19 +87,21 @@ object TPA {
             onClick(lock = true) {}
             set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " })
             set('M', buildItem(XMaterial.PLAYER_HEAD) {
-                name = "§6${requester.name} §f请求传送至您的位置"
-                skullOwner = requester.name
+                name = "§6${requesterSnapshot.name} §f请求传送至您的位置"
+                skullOwner = requesterSnapshot.name
             })
             set('Y', buildItem(XMaterial.DIAMOND) {
                 name = "§a同意"
-                lore += "§7允许 ${requester.name} 传送到您身边"
+                lore += "§7允许 ${requesterSnapshot.name} 传送到您身边"
             }) {
                 if (handled) {
                     target.foliaCloseInventory()
                     return@set
                 }
                 handled = true
-                acceptRequest(requester, target)
+                target.foliaRun {
+                    acceptRequest(requester, target, requesterSnapshot, targetSnapshot)
+                }
                 target.foliaCloseInventory()
             }
             set('N', buildItem(XMaterial.REDSTONE) {
@@ -90,52 +113,88 @@ object TPA {
                     return@set
                 }
                 handled = true
-                rejectRequest(requester, target)
+                target.foliaRun {
+                    rejectRequest(requesterSnapshot, targetSnapshot)
+                }
                 target.foliaCloseInventory()
             }
             onClose {
                 if (!handled) {
                     handled = true
-                    rejectRequest(requester, target)
+                    target.foliaRun {
+                        rejectRequest(requesterSnapshot, targetSnapshot)
+                    }
                 }
             }
         }
     }
 
-    private fun openBedrockConfirm(requester: Player, target: Player) {
+    private fun openBedrockConfirm(
+        requester: Player,
+        target: Player,
+        requesterSnapshot: TpaRequesterSnapshot,
+        targetSnapshot: OnlinePlayerSelection,
+    ) {
         target.sendForm(
             ModalForm.builder()
                 .title("§l§6请求传送")
-                .content("§6${requester.name} §f请求传送至您的位置。")
+                .content("§6${requesterSnapshot.name} §f请求传送至您的位置。")
                 .button1("同意")
                 .button2("拒绝")
                 .validResultHandler { response ->
-                    if (response.clickedButtonId() == 0) {
-                        acceptRequest(requester, target)
-                    } else {
-                        rejectRequest(requester, target)
+                    val accepted = response.clickedButtonId() == 0
+                    target.foliaRun {
+                        if (accepted) {
+                            acceptRequest(requester, target, requesterSnapshot, targetSnapshot)
+                        } else {
+                            rejectRequest(requesterSnapshot, targetSnapshot)
+                        }
                     }
                 }
                 .closedOrInvalidResultHandler(Runnable {
-                    rejectRequest(requester, target)
+                    target.foliaRun {
+                        rejectRequest(requesterSnapshot, targetSnapshot)
+                    }
                 })
         )
     }
 
-    private fun acceptRequest(requester: Player, target: Player) {
-        requester.foliaTeleport(target).thenAccept { success ->
-            if (success) {
-                requester.sendTeleportSuccess("${target.name} 同意了您的传送请求。")
-                target.sendTeleportSuccess("已同意 ${requester.name} 的传送请求。")
-            } else {
-                requester.sendTeleportError("传送失败，目标玩家可能已离线。")
-                target.sendTeleportError("传送失败，${requester.name} 可能已离线。")
+    private fun acceptRequest(
+        requester: Player,
+        target: Player,
+        requesterSnapshot: TpaRequesterSnapshot,
+        targetSnapshot: OnlinePlayerSelection,
+    ) {
+        requester.foliaTeleport(target).whenComplete { success, error ->
+            val teleported = error == null && success == true
+            runForOnlinePlayer(requesterSnapshot.uuid) {
+                if (teleported) {
+                    sendTeleportSuccess("${targetSnapshot.name} 同意了您的传送请求。")
+                } else {
+                    sendTeleportError("传送失败，目标玩家可能已离线。")
+                }
+            }
+            targetSnapshot.withOnlinePlayer {
+                if (teleported) {
+                    sendTeleportSuccess("已同意 ${requesterSnapshot.name} 的传送请求。")
+                } else {
+                    sendTeleportError("传送失败，${requesterSnapshot.name} 可能已离线。")
+                }
             }
         }
     }
 
-    private fun rejectRequest(requester: Player, target: Player) {
-        requester.sendTeleportError("${target.name} 拒绝了您的传送请求。")
-        target.sendTeleportError("已拒绝 ${requester.name} 的传送请求。")
+    private fun rejectRequest(requesterSnapshot: TpaRequesterSnapshot, targetSnapshot: OnlinePlayerSelection) {
+        runForOnlinePlayer(requesterSnapshot.uuid) {
+            sendTeleportError("${targetSnapshot.name} 拒绝了您的传送请求。")
+        }
+        targetSnapshot.withOnlinePlayer {
+            sendTeleportError("已拒绝 ${requesterSnapshot.name} 的传送请求。")
+        }
     }
 }
+
+private data class TpaRequesterSnapshot(
+    val uuid: java.util.UUID,
+    val name: String,
+)

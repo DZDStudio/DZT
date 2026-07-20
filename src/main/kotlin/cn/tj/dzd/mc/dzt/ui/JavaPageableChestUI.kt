@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.ui
 
 import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
+import cn.tj.dzd.mc.dzt.util.foliaRun
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import taboolib.library.xseries.XMaterial
@@ -37,7 +38,17 @@ object JavaPageableChestUI {
     ) {
         val scope = Scope().apply(block)
         val snapshot = items.map { it.clone() }
+        player.foliaRun {
+            openOnPlayerThread(this, title, snapshot, scope)
+        }
+    }
 
+    private fun openOnPlayerThread(
+        player: Player,
+        title: String,
+        snapshot: List<ItemStack>,
+        scope: Scope,
+    ) {
         player.openMenu<PageableChest<ItemStack>>(title) {
             rows(6)
             virtualize()

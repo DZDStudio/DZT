@@ -1,13 +1,13 @@
 database:
-  enable: true
+  enable: false
   host: 127.0.0.1
   port: 3306
-  user: mc
-  password: 114514
-  database: mc
+  user: ""
+  password: ""
+  database: ""
 
 redis:
-  enable: true
+  enable: false
   host: 127.0.0.1
   port: 6379
   user:

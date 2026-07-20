@@ -1,11 +1,12 @@
 package cn.tj.dzd.mc.dzt.ui
 
-import cn.tj.dzd.mc.dzt.util.avatarUrl
+import cn.tj.dzd.mc.dzt.util.avatarTarget
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
+import cn.tj.dzd.mc.dzt.util.runForOnlinePlayer
 import cn.tj.dzd.mc.dzt.util.sendDZTError
 import cn.tj.dzd.mc.dzt.util.sendForm
-import org.bukkit.Bukkit
+import cn.tj.dzd.mc.dzt.util.toAvatarUrl
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.SimpleForm
 import org.geysermc.cumulus.util.FormImage
@@ -13,14 +14,18 @@ import taboolib.library.xseries.XMaterial
 import taboolib.module.ui.openMenu
 import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.buildItem
+import taboolib.platform.util.onlinePlayers
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 /**
  * 在线玩家选择完成后的回调。
  *
- * 回调接收打开 UI 的玩家与被选中的在线玩家，并在打开者所属的 Folia 实体线程执行。
+ * 回调接收打开 UI 的玩家与被选中的玩家快照，并在打开者所属的 Folia 实体线程执行。
+ * 不会把另一个实体的 [Player] 句柄跨线程暴露给调用方；需要与目标玩家交互时，
+ * 请通过 [OnlinePlayerSelection.withOnlinePlayer] 进入其实体线程。
  */
-typealias OnlinePlayerSelectCallback = Player.(Player) -> Unit
+typealias OnlinePlayerSelectCallback = Player.(OnlinePlayerSelection) -> Unit
 
 /**
  * 在线玩家选择 UI 的返回回调。
@@ -28,6 +33,34 @@ typealias OnlinePlayerSelectCallback = Player.(Player) -> Unit
  * 回调在打开者所属的 Folia 实体线程执行。
  */
 typealias OnlinePlayerSelectBackCallback = Player.() -> Unit
+
+/**
+ * 在线玩家选择结果的不可变快照。
+ *
+ * 字段均在目标玩家所属的 Folia 实体线程中采样，因此异步流程可以安全地持有该对象，
+ * 而无需持有或跨线程读取 Bukkit [Player]。
+ *
+ * @property uuid 目标玩家 UUID。
+ * @property name 目标玩家选择时的名称。
+ * @property isBedrock 是否为基岩版客户端。
+ */
+data class OnlinePlayerSelection(
+    val uuid: UUID,
+    val name: String,
+    val isBedrock: Boolean,
+) {
+    /**
+     * 在该选择结果对应玩家的 Folia 实体线程执行操作。
+     *
+     * 此方法只将 Bukkit 玩家句柄用于调度，不会在调用方线程读取目标实体状态。
+     *
+     * @param block 要在目标玩家实体线程执行的操作。
+     * @return 操作是否成功进入并完成执行；目标离线或实体调度器失效时完成为 false。
+     */
+    fun withOnlinePlayer(block: Player.() -> Unit): CompletableFuture<Boolean> {
+        return runForOnlinePlayer(uuid, block)
+    }
+}
 
 /**
  * 跨端在线玩家选择 UI。
@@ -63,39 +96,74 @@ object OnlinePlayerSelectUI {
         onSelect: OnlinePlayerSelectCallback,
     ) {
         player.foliaRun {
-            val targets = Bukkit.getOnlinePlayers()
-                .asSequence()
-                .filter { it.uniqueId != uniqueId }
-                .map { OnlinePlayerOption(it.uniqueId, it.name, it.avatarUrl()) }
-                .sortedBy { it.name.lowercase() }
-                .toList()
+            loadTargets(
+                this,
+                uniqueId,
+                onlinePlayers.toList(),
+                title,
+                description,
+                emptyMessage,
+                selectLore,
+                backLabel,
+                onBack,
+                onSelect,
+            )
+        }
+    }
 
-            if (isBePlayer()) {
-                openBedrock(
-                    this,
-                    targets,
-                    title,
-                    description,
-                    emptyMessage,
-                    selectLore,
-                    backLabel,
-                    onBack,
-                    onSelect,
-                )
-            } else {
-                openJava(
-                    this,
-                    targets,
-                    title,
-                    description,
-                    emptyMessage,
-                    selectLore,
-                    backLabel,
-                    onBack,
-                    onSelect,
-                )
+    private fun loadTargets(
+        player: Player,
+        viewerId: UUID,
+        candidates: List<Player>,
+        title: String,
+        description: String,
+        emptyMessage: String,
+        selectLore: String,
+        backLabel: String,
+        onBack: OnlinePlayerSelectBackCallback,
+        onSelect: OnlinePlayerSelectCallback,
+    ) {
+        val snapshots = candidates.map { candidate ->
+            snapshotTarget(candidate, viewerId)
+        }
+
+        CompletableFuture.allOf(*snapshots.toTypedArray()).whenComplete { _, _ ->
+            val targets = snapshots
+                .mapNotNull { it.getNow(null) }
+                .sortedBy { it.name.lowercase() }
+
+            player.foliaRun {
+                if (isBePlayer()) {
+                    openBedrock(this, targets, title, description, emptyMessage, selectLore, backLabel, onBack, onSelect)
+                } else {
+                    openJava(this, targets, title, description, emptyMessage, selectLore, backLabel, onBack, onSelect)
+                }
             }
         }
+    }
+
+    private fun snapshotTarget(candidate: Player, viewerId: UUID): CompletableFuture<OnlinePlayerOption?> {
+        val snapshot = CompletableFuture<OnlinePlayerOption?>()
+        candidate.foliaRun {
+            if (uniqueId == viewerId) {
+                snapshot.complete(null)
+                return@foliaRun
+            }
+
+            snapshot.complete(
+                OnlinePlayerOption(
+                    uuid = uniqueId,
+                    name = name,
+                    avatarUrl = avatarTarget().toAvatarUrl(),
+                    isBedrock = isBePlayer(),
+                )
+            )
+        }.whenComplete { scheduled, error ->
+            if (error != null || scheduled != true) {
+                snapshot.complete(null)
+            }
+        }
+        return snapshot
     }
 
     private fun openJava(
@@ -133,7 +201,9 @@ object OnlinePlayerSelectUI {
                 }
             }
             set('R', buildItem(XMaterial.BARREL) { name = backLabel }) {
-                player.onBack()
+                player.foliaRun {
+                    onBack()
+                }
             }
 
             slotsBy('@')
@@ -148,17 +218,7 @@ object OnlinePlayerSelectUI {
             onClick { _, target ->
                 player.foliaRun {
                     closeInventory()
-                    select(
-                        this,
-                        target,
-                        title,
-                        description,
-                        emptyMessage,
-                        selectLore,
-                        backLabel,
-                        onBack,
-                        onSelect,
-                    )
+                    select(this, target, title, description, emptyMessage, selectLore, backLabel, onBack, onSelect)
                 }
             }
 
@@ -204,17 +264,7 @@ object OnlinePlayerSelectUI {
                 }
 
                 val target = targets.getOrNull(clicked - 1) ?: return@foliaRun
-                select(
-                    this,
-                    target,
-                    title,
-                    description,
-                    emptyMessage,
-                    selectLore,
-                    backLabel,
-                    onBack,
-                    onSelect,
-                )
+                select(this, target, title, description, emptyMessage, selectLore, backLabel, onBack, onSelect)
             }
         }
         player.sendForm(form)
@@ -231,23 +281,32 @@ object OnlinePlayerSelectUI {
         onBack: OnlinePlayerSelectBackCallback,
         onSelect: OnlinePlayerSelectCallback,
     ) {
-        val target = Bukkit.getPlayer(selected.uuid)
-        if (target == null || !target.isOnline) {
-            player.sendDZTError("玩家已离线。")
-            open(
-                player,
-                title,
-                description,
-                emptyMessage,
-                selectLore,
-                backLabel,
-                onBack,
-                onSelect,
-            )
-            return
+        val selection = selected.toSelection()
+        selection.withOnlinePlayer {
+            player.foliaRun {
+                onSelect(selection)
+            }
+        }.whenComplete { scheduled, error ->
+            if (error != null || scheduled != true) {
+                player.foliaRun {
+                    targetUnavailable(this, title, description, emptyMessage, selectLore, backLabel, onBack, onSelect)
+                }
+            }
         }
+    }
 
-        player.onSelect(target)
+    private fun targetUnavailable(
+        player: Player,
+        title: String,
+        description: String,
+        emptyMessage: String,
+        selectLore: String,
+        backLabel: String,
+        onBack: OnlinePlayerSelectBackCallback,
+        onSelect: OnlinePlayerSelectCallback,
+    ) {
+        player.sendDZTError("玩家已离线。")
+        open(player, title, description, emptyMessage, selectLore, backLabel, onBack, onSelect)
     }
 }
 
@@ -255,4 +314,9 @@ private data class OnlinePlayerOption(
     val uuid: UUID,
     val name: String,
     val avatarUrl: String,
-)
+    val isBedrock: Boolean,
+) {
+    fun toSelection(): OnlinePlayerSelection {
+        return OnlinePlayerSelection(uuid, name, isBedrock)
+    }
+}

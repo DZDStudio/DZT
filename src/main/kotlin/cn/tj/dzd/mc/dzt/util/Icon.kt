@@ -1,10 +1,8 @@
 package cn.tj.dzd.mc.dzt.util
 
-import org.bukkit.Material
-import org.bukkit.NamespacedKey
-import org.bukkit.Registry
 import org.bukkit.inventory.ItemStack
 import taboolib.expansion.IndexedEnum
+import taboolib.library.xseries.XMaterial
 import java.util.Locale
 
 /**
@@ -111,10 +109,12 @@ enum class Icon(
         get() = ordinal.toLong() + 1
 
     /**
-     * Java 版 Bukkit 物品材质对象。
+     * Java 版展示使用的 TabooLib 跨版本物品材质。
      */
-    val jeMaterial: Material by lazy {
-        requireNotNull(resolveMaterial(jeName)) { "无法解析图标物品: $jeName" }
+    val xMaterial: XMaterial by lazy {
+        val materialName = normalizeJeName(jeName).substringAfter(':')
+        XMaterial.matchXMaterial(materialName)
+            .orElseThrow { IllegalArgumentException("无法解析图标物品: $jeName") }
     }
 
     /**
@@ -125,7 +125,9 @@ enum class Icon(
      */
     fun createJeItem(amount: Int = 1): ItemStack {
         require(amount > 0) { "物品数量必须大于 0" }
-        return ItemStack(jeMaterial, amount)
+        return requireNotNull(xMaterial.parseItem()) { "无法创建图标物品: $jeName" }.apply {
+            this.amount = amount
+        }
     }
 
     companion object {
@@ -170,16 +172,5 @@ enum class Icon(
             "minecraft:eye_of_ender" to "minecraft:ender_eye"
         )
 
-        private fun resolveMaterial(jeName: String): Material? {
-            val normalizedName = normalizeJeName(jeName)
-            val key = NamespacedKey.fromString(normalizedName)
-            val registryMaterial = key?.let { Registry.MATERIAL.get(it) }
-            if (registryMaterial != null) {
-                return registryMaterial
-            }
-
-            val materialName = normalizedName.substringAfter(':').uppercase(Locale.ROOT)
-            return Material.matchMaterial(materialName)
-        }
     }
 }

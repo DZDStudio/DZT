@@ -1,8 +1,8 @@
 package cn.tj.dzd.mc.dzt.economy
 
+import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
 import net.thenextlvl.service.economy.Account
 import net.thenextlvl.service.economy.EconomyController
-import net.thenextlvl.service.economy.TransactionResult
 import net.thenextlvl.service.economy.currency.Currency
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
@@ -11,8 +11,6 @@ import java.math.BigDecimal
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 /**
  * ServiceIO 经济接口适配层。
@@ -21,10 +19,7 @@ import kotlin.concurrent.withLock
  */
 object ServiceEconomy {
 
-    private const val MAX_AMOUNT_INPUT_LENGTH = 32
-    private const val ACCOUNT_LOCK_STRIPES = 64
-
-    private val accountLocks = Array(ACCOUNT_LOCK_STRIPES) { ReentrantLock() }
+    private val transferEngine = EconomyTransferEngine()
 
     /**
      * 获取玩家默认货币余额。
@@ -46,8 +41,10 @@ object ServiceEconomy {
         return try {
             val controller = controller() ?: return CompletableFuture.completedFuture(null)
             val currency = controller.currencyController.defaultCurrency
-            controller.resolveAccount(uuid).thenApplyAsync { account ->
-                account.toBalance(currency)
+            controller.resolveAccount(uuid).thenCompose { account ->
+                DztAsyncExecutor.supply {
+                    account.toBalance(currency)
+                }
             }
         } catch (error: Throwable) {
             CompletableFuture.failedFuture(error)
@@ -61,19 +58,7 @@ object ServiceEconomy {
      * @return 规范化后的正数金额；格式非法、数值非有限或文本过长时返回 null。
      */
     fun parseAmount(input: String): BigDecimal? {
-        val normalized = input.trim()
-        if (normalized.isEmpty() || normalized.length > MAX_AMOUNT_INPUT_LENGTH) {
-            return null
-        }
-        if (!normalized.matches(PLAIN_DECIMAL_PATTERN)) {
-            return null
-        }
-
-        val amount = normalized.toBigDecimalOrNull()?.stripTrailingZeros() ?: return null
-        if (amount <= BigDecimal.ZERO || !amount.toDouble().isFinite()) {
-            return null
-        }
-        return amount
+        return EconomyAmounts.parse(input)
     }
 
     /**
@@ -88,7 +73,7 @@ object ServiceEconomy {
      * @return 异步转账结果。
      */
     fun transfer(from: UUID, to: UUID, amount: BigDecimal): CompletableFuture<EconomyTransferResult> {
-        if (from == to || amount <= BigDecimal.ZERO || !amount.toDouble().isFinite()) {
+        if (from == to || !isValidPositiveAmount(amount)) {
             return CompletableFuture.completedFuture(
                 EconomyTransferResult(EconomyTransferStatus.INVALID_AMOUNT, amount)
             )
@@ -105,9 +90,109 @@ object ServiceEconomy {
                 )
             }
             controller.resolveAccount(from)
-                .thenCombineAsync(controller.resolveAccount(to)) { sender, receiver ->
-                    transferResolved(from, to, amount, currency, sender, receiver)
+                .thenCombine(controller.resolveAccount(to)) { sender, receiver -> sender to receiver }
+                .thenCompose { (sender, receiver) ->
+                    DztAsyncExecutor.supply {
+                        val result = transferEngine.transfer(
+                            from = from,
+                            to = to,
+                            amount = amount,
+                            sender = sender.orElse(null)?.let { ServiceIoEconomyAccount(it, currency) },
+                            receiver = receiver.orElse(null)?.let { ServiceIoEconomyAccount(it, currency) },
+                        )
+                        if (result.status == EconomyTransferStatus.DEPOSIT_FAILED_REFUND_FAILED) {
+                            severe(
+                                "ServiceIO 转账入账失败且退款失败，请人工核对账户。",
+                                "转出玩家 UUID: $from",
+                                "接收玩家 UUID: $to",
+                                "金额: ${formatAmount(amount)}",
+                            )
+                        }
+                        result
+                    }
                 }
+        } catch (error: Throwable) {
+            CompletableFuture.failedFuture(error)
+        }
+    }
+
+    /**
+     * 从玩家的 ServiceIO 默认货币账户异步扣款。
+     *
+     * 此操作与 [transfer]、[refund] 共用同一个账户锁。相同玩家的商店结算、退款和转账
+     * 会在本 DZT 进程内按实际进入账户操作的顺序串行执行。
+     *
+     * @param player 要扣款的玩家 UUID。
+     * @param amount 扣款金额，必须大于 0 且符合默认货币精度。
+     * @return 异步扣款结果；底层 ServiceIO Future 异常时该 Future 异常完成。
+     */
+    fun withdraw(player: UUID, amount: BigDecimal): CompletableFuture<EconomyWithdrawalResult> {
+        if (!isValidPositiveAmount(amount)) {
+            return CompletableFuture.completedFuture(
+                EconomyWithdrawalResult(EconomyWithdrawalStatus.INVALID_AMOUNT, amount)
+            )
+        }
+
+        return try {
+            val controller = controller() ?: return CompletableFuture.completedFuture(
+                EconomyWithdrawalResult(EconomyWithdrawalStatus.SERVICE_UNAVAILABLE, amount)
+            )
+            val currency = controller.currencyController.defaultCurrency
+            if (!supportsFractionalDigits(amount, currency)) {
+                return CompletableFuture.completedFuture(
+                    EconomyWithdrawalResult(EconomyWithdrawalStatus.INVALID_PRECISION, amount)
+                )
+            }
+            controller.resolveAccount(player).thenCompose { account ->
+                DztAsyncExecutor.supply {
+                    transferEngine.withdraw(
+                        player = player,
+                        amount = amount,
+                        account = account.orElse(null)?.let { ServiceIoEconomyAccount(it, currency) },
+                    ).toWithdrawalResult()
+                }
+            }
+        } catch (error: Throwable) {
+            CompletableFuture.failedFuture(error)
+        }
+    }
+
+    /**
+     * 向玩家的 ServiceIO 默认货币账户退还已扣除的金额。
+     *
+     * 该接口仅用于无法完成后续业务操作时的补偿。例如商店已经扣款但物品发放失败时，
+     * 应以与原扣款相同的金额调用本方法。禁止将其作为通用发币接口使用。
+     *
+     * @param player 要退款的玩家 UUID。
+     * @param amount 退款金额，必须大于 0 且符合默认货币精度。
+     * @return 异步退款结果；底层 ServiceIO Future 异常时该 Future 异常完成。
+     */
+    fun refund(player: UUID, amount: BigDecimal): CompletableFuture<EconomyRefundResult> {
+        if (!isValidPositiveAmount(amount)) {
+            return CompletableFuture.completedFuture(
+                EconomyRefundResult(EconomyRefundStatus.INVALID_AMOUNT, amount)
+            )
+        }
+
+        return try {
+            val controller = controller() ?: return CompletableFuture.completedFuture(
+                EconomyRefundResult(EconomyRefundStatus.SERVICE_UNAVAILABLE, amount)
+            )
+            val currency = controller.currencyController.defaultCurrency
+            if (!supportsFractionalDigits(amount, currency)) {
+                return CompletableFuture.completedFuture(
+                    EconomyRefundResult(EconomyRefundStatus.INVALID_PRECISION, amount)
+                )
+            }
+            controller.resolveAccount(player).thenCompose { account ->
+                DztAsyncExecutor.supply {
+                    transferEngine.deposit(
+                        player = player,
+                        amount = amount,
+                        account = account.orElse(null)?.let { ServiceIoEconomyAccount(it, currency) },
+                    ).toRefundResult()
+                }
+            }
         } catch (error: Throwable) {
             CompletableFuture.failedFuture(error)
         }
@@ -120,76 +205,7 @@ object ServiceEconomy {
      * @return 不使用科学计数法的金额文本。
      */
     fun formatAmount(amount: BigDecimal): String {
-        return amount.stripTrailingZeros().toPlainString()
-    }
-
-    private fun transferResolved(
-        from: UUID,
-        to: UUID,
-        amount: BigDecimal,
-        currency: Currency,
-        sender: Optional<Account>,
-        receiver: Optional<Account>,
-    ): EconomyTransferResult {
-        if (sender.isEmpty) {
-            return EconomyTransferResult(EconomyTransferStatus.SENDER_ACCOUNT_UNAVAILABLE, amount)
-        }
-        if (receiver.isEmpty) {
-            return EconomyTransferResult(EconomyTransferStatus.RECEIVER_ACCOUNT_UNAVAILABLE, amount)
-        }
-
-        return withAccountLocks(from, to) {
-            val senderAccount = sender.get()
-            val receiverAccount = receiver.get()
-            if (!senderAccount.canHold(currency) || !receiverAccount.canHold(currency)) {
-                return@withAccountLocks EconomyTransferResult(
-                    EconomyTransferStatus.CURRENCY_NOT_SUPPORTED,
-                    amount,
-                )
-            }
-
-            val withdrawal = senderAccount.withdraw(amount, currency)
-            if (!withdrawal.successful()) {
-                val status = when (withdrawal.status()) {
-                    TransactionResult.Status.INSUFFICIENT_FUNDS -> EconomyTransferStatus.INSUFFICIENT_FUNDS
-                    TransactionResult.Status.CURRENCY_NOT_SUPPORTED -> EconomyTransferStatus.CURRENCY_NOT_SUPPORTED
-                    else -> EconomyTransferStatus.WITHDRAWAL_FAILED
-                }
-                return@withAccountLocks EconomyTransferResult(status, amount, withdrawal.balance().toBigDecimalOrNull())
-            }
-
-            val deposit = receiverAccount.deposit(amount, currency)
-            if (deposit.successful()) {
-                return@withAccountLocks EconomyTransferResult(
-                    EconomyTransferStatus.SUCCESS,
-                    amount,
-                    withdrawal.balance().toBigDecimalOrNull(),
-                )
-            }
-
-            val refund = senderAccount.deposit(amount, currency)
-            if (refund.successful()) {
-                return@withAccountLocks EconomyTransferResult(
-                    EconomyTransferStatus.DEPOSIT_FAILED_REFUNDED,
-                    amount,
-                    refund.balance().toBigDecimalOrNull(),
-                )
-            }
-
-            severe(
-                "ServiceIO 转账入账失败且退款失败，请人工核对账户。",
-                "转出玩家 UUID: $from",
-                "接收玩家 UUID: $to",
-                "金额: ${formatAmount(amount)}",
-                "入账状态: ${deposit.status()}",
-                "退款状态: ${refund.status()}",
-            )
-            EconomyTransferResult(
-                EconomyTransferStatus.DEPOSIT_FAILED_REFUND_FAILED,
-                amount,
-                refund.balance().toBigDecimalOrNull(),
-            )
-        }
+        return EconomyAmounts.format(amount)
     }
 
     private fun Optional<Account>.toBalance(currency: Currency): EconomyBalance? {
@@ -205,44 +221,20 @@ object ServiceEconomy {
     }
 
     private fun supportsFractionalDigits(amount: BigDecimal, currency: Currency): Boolean {
-        val fractionalDigits = currency.fractionalDigits
-        if (fractionalDigits < 0) {
-            return true
-        }
-        return amount.stripTrailingZeros().scale().coerceAtLeast(0) <= fractionalDigits
+        return EconomyAmounts.supportsFractionalDigits(amount, currency.fractionalDigits)
     }
 
+    private fun isValidPositiveAmount(amount: BigDecimal): Boolean {
+        return amount > BigDecimal.ZERO && amount.toDouble().isFinite()
+    }
+
+    /**
+     * ServiceIO registers its controller through Bukkit's service registry; TabooLib has no typed equivalent.
+     */
     private fun controller(): EconomyController? {
         return Bukkit.getServicesManager().load(EconomyController::class.java)
     }
 
-    private fun <T> withAccountLocks(first: UUID, second: UUID, block: () -> T): T {
-        val lockIndexes = listOf(lockIndex(first), lockIndex(second))
-            .distinct()
-            .sorted()
-
-        fun lock(index: Int): T {
-            if (index >= lockIndexes.size) {
-                return block()
-            }
-            return accountLocks[lockIndexes[index]].withLock {
-                lock(index + 1)
-            }
-        }
-
-        return lock(0)
-    }
-
-    private fun lockIndex(uuid: UUID): Int {
-        return (uuid.hashCode() and Int.MAX_VALUE) % accountLocks.size
-    }
-
-    private fun Number.toBigDecimalOrNull(): BigDecimal? {
-        return toString().toBigDecimalOrNull()
-            ?: runCatching { BigDecimal.valueOf(toDouble()) }.getOrNull()
-    }
-
-    private val PLAIN_DECIMAL_PATTERN = Regex("[0-9]+(?:\\.[0-9]+)?")
 }
 
 /**
@@ -276,6 +268,67 @@ data class EconomyTransferResult(
 }
 
 /**
+ * ServiceIO 默认货币扣款处理结果。
+ *
+ * @property status 扣款状态。
+ * @property amount 本次请求金额。
+ * @property balance 扣款完成后的账户余额；无法取得时为 null。
+ */
+data class EconomyWithdrawalResult(
+    val status: EconomyWithdrawalStatus,
+    val amount: BigDecimal,
+    val balance: BigDecimal? = null,
+) {
+    /** 扣款是否成功。 */
+    val successful: Boolean
+        get() = status == EconomyWithdrawalStatus.SUCCESS
+}
+
+/**
+ * 调用 [ServiceEconomy.withdraw] 时可能产生的状态。
+ */
+enum class EconomyWithdrawalStatus {
+    SUCCESS,
+    SERVICE_UNAVAILABLE,
+    INVALID_AMOUNT,
+    INVALID_PRECISION,
+    ACCOUNT_UNAVAILABLE,
+    CURRENCY_NOT_SUPPORTED,
+    INSUFFICIENT_FUNDS,
+    WITHDRAWAL_FAILED,
+}
+
+/**
+ * ServiceIO 默认货币退款处理结果。
+ *
+ * @property status 退款状态。
+ * @property amount 本次请求金额。
+ * @property balance 退款完成后的账户余额；无法取得时为 null。
+ */
+data class EconomyRefundResult(
+    val status: EconomyRefundStatus,
+    val amount: BigDecimal,
+    val balance: BigDecimal? = null,
+) {
+    /** 退款是否成功。 */
+    val successful: Boolean
+        get() = status == EconomyRefundStatus.SUCCESS
+}
+
+/**
+ * 调用 [ServiceEconomy.refund] 时可能产生的状态。
+ */
+enum class EconomyRefundStatus {
+    SUCCESS,
+    SERVICE_UNAVAILABLE,
+    INVALID_AMOUNT,
+    INVALID_PRECISION,
+    ACCOUNT_UNAVAILABLE,
+    CURRENCY_NOT_SUPPORTED,
+    REFUND_FAILED,
+}
+
+/**
  * DZT 调用 ServiceIO 转账时可能产生的状态。
  */
 enum class EconomyTransferStatus {
@@ -290,4 +343,32 @@ enum class EconomyTransferStatus {
     WITHDRAWAL_FAILED,
     DEPOSIT_FAILED_REFUNDED,
     DEPOSIT_FAILED_REFUND_FAILED,
+}
+
+private fun EconomyAccountMutationResult.toWithdrawalResult(): EconomyWithdrawalResult {
+    val status = when (status) {
+        EconomyAccountMutationStatus.SUCCESS -> EconomyWithdrawalStatus.SUCCESS
+        EconomyAccountMutationStatus.INVALID_AMOUNT -> EconomyWithdrawalStatus.INVALID_AMOUNT
+        EconomyAccountMutationStatus.ACCOUNT_UNAVAILABLE -> EconomyWithdrawalStatus.ACCOUNT_UNAVAILABLE
+        EconomyAccountMutationStatus.CURRENCY_NOT_SUPPORTED -> EconomyWithdrawalStatus.CURRENCY_NOT_SUPPORTED
+        EconomyAccountMutationStatus.INSUFFICIENT_FUNDS -> EconomyWithdrawalStatus.INSUFFICIENT_FUNDS
+        EconomyAccountMutationStatus.WITHDRAWAL_FAILED,
+        EconomyAccountMutationStatus.DEPOSIT_FAILED,
+        -> EconomyWithdrawalStatus.WITHDRAWAL_FAILED
+    }
+    return EconomyWithdrawalResult(status, amount, balance)
+}
+
+private fun EconomyAccountMutationResult.toRefundResult(): EconomyRefundResult {
+    val status = when (status) {
+        EconomyAccountMutationStatus.SUCCESS -> EconomyRefundStatus.SUCCESS
+        EconomyAccountMutationStatus.INVALID_AMOUNT -> EconomyRefundStatus.INVALID_AMOUNT
+        EconomyAccountMutationStatus.ACCOUNT_UNAVAILABLE -> EconomyRefundStatus.ACCOUNT_UNAVAILABLE
+        EconomyAccountMutationStatus.CURRENCY_NOT_SUPPORTED -> EconomyRefundStatus.CURRENCY_NOT_SUPPORTED
+        EconomyAccountMutationStatus.INSUFFICIENT_FUNDS,
+        EconomyAccountMutationStatus.WITHDRAWAL_FAILED,
+        EconomyAccountMutationStatus.DEPOSIT_FAILED,
+        -> EconomyRefundStatus.REFUND_FAILED
+    }
+    return EconomyRefundResult(status, amount, balance)
 }

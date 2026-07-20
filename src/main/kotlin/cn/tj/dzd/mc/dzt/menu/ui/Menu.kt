@@ -2,7 +2,9 @@ package cn.tj.dzd.mc.dzt.menu.ui
 
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
 import cn.tj.dzd.mc.dzt.economy.ui.TransferUI
+import cn.tj.dzd.mc.dzt.shop.ui.ShopUI
 import cn.tj.dzd.mc.dzt.title.ui.TitleUI
+import cn.tj.dzd.mc.dzt.ui.MainMenuNavigation
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaPerformCommand
 import cn.tj.dzd.mc.dzt.util.foliaRun
@@ -14,6 +16,8 @@ import org.geysermc.cumulus.form.ModalForm
 import org.geysermc.cumulus.form.SimpleForm
 import org.geysermc.cumulus.util.FormImage
 import taboolib.common.function.throttle
+import taboolib.common.LifeCycle
+import taboolib.common.platform.Awake
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.library.xseries.XMaterial
 import taboolib.module.ui.openMenu
@@ -30,19 +34,34 @@ object Menu {
     }
 
     /**
+     * 向功能 UI 注册主菜单导航实现。
+     */
+    @Awake(LifeCycle.ACTIVE)
+    fun registerNavigation() {
+        MainMenuNavigation.register { player ->
+            with(Menu) {
+                player.openMenu()
+            }
+        }
+    }
+
+    /**
      * 打开主菜单。
      *
      * 同一玩家在 [OPEN_MENU_THROTTLE_DELAY] 毫秒内重复调用时，仅第一次调用会真正打开菜单。
      */
     fun Player.openMenu() {
-        openMainMenu(uniqueId, this)
+        foliaRun {
+            openMainMenu(uniqueId, this)
+        }
     }
 
     private fun Player.openMenuDirectly() {
-        if (isBePlayer())
-            be(this)
-        else
-            je(this)
+        if (isBePlayer()) {
+            openBedrockMenu(this)
+        } else {
+            openJavaMenu(this)
+        }
     }
 
     /**
@@ -54,8 +73,14 @@ object Menu {
     }
 
     fun je(pl: Player) {
+        pl.foliaRun {
+            openJavaMenu(this)
+        }
+    }
+
+    private fun openJavaMenu(pl: Player) {
         pl.openMenu<Chest>(TextLogo) {
-            rows(5)
+            rows(6)
 
             virtualize()
 
@@ -63,7 +88,8 @@ object Menu {
                 "####I####",
                 "#       #",
                 "# T E C #",
-                "#   S   #",
+                "#  H S  #",
+                "#       #",
                 "#########"
             )
             set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) {
@@ -96,6 +122,13 @@ object Menu {
                 TitleUI.open(pl)
             }
 
+            set('H', buildItem(XMaterial.CHEST) {
+                name = "商店"
+                lore += "购买常用资源"
+            }) {
+                ShopUI.open(pl)
+            }
+
             set('S', buildItem(XMaterial.WITHER_SKELETON_SKULL) {
                 name = "§l§c自杀"
                 lore += "§7结束当前生命"
@@ -106,28 +139,43 @@ object Menu {
     }
 
     fun be(pl: Player) {
+        pl.foliaRun {
+            openBedrockMenu(this)
+        }
+    }
+
+    private fun openBedrockMenu(pl: Player) {
         val fm = SimpleForm.builder()
             .title(TextLogo)
             .button("传送", FormImage.Type.PATH, "textures/ui/csb_purchase_warning.png")
             .button("转账", FormImage.Type.PATH, "textures/items/emerald.png")
             .button("称号", FormImage.Type.PATH, "textures/items/name_tag.png")
+            .button("商店", FormImage.Type.PATH, "textures/blocks/chest_front.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
             .validResultHandler { res ->
                 val id = res.clickedButtonId()
-
-                when (id) {
-                    0 -> pl.openTeleport()
-                    1 -> TransferUI.openTransferUI(pl)
-                    2 -> TitleUI.open(pl)
-                    3 -> pl.foliaPerformCommand("geyser advancements")
-                    4 -> openBedrockSuicideConfirmation(pl)
+                pl.foliaRun {
+                    when (id) {
+                        0 -> openTeleport()
+                        1 -> TransferUI.openTransferUI(this)
+                        2 -> TitleUI.open(this)
+                        3 -> ShopUI.open(this)
+                        4 -> foliaPerformCommand("geyser advancements")
+                        5 -> openBedrockSuicideConfirmation(this)
+                    }
                 }
             }
         pl.sendForm(fm)
     }
 
     private fun openJavaSuicideConfirmation(player: Player) {
+        player.foliaRun {
+            openJavaSuicideConfirmationOnPlayerThread(this)
+        }
+    }
+
+    private fun openJavaSuicideConfirmationOnPlayerThread(player: Player) {
         player.openMenu<Chest>("§l§c确认自杀") {
             rows(3)
             virtualize()
@@ -156,20 +204,25 @@ object Menu {
     }
 
     private fun openBedrockSuicideConfirmation(player: Player) {
-        player.sendForm(
-            ModalForm.builder()
-                .title("§l§c确认自杀")
-                .content("确认结束当前生命？")
-                .button1("确认自杀")
-                .button2("取消")
-                .validResultHandler { response ->
-                    if (response.clickedButtonId() == 0) {
-                        player.suicide()
-                    } else {
-                        player.openMenu()
+        player.foliaRun {
+            sendForm(
+                ModalForm.builder()
+                    .title("§l§c确认自杀")
+                    .content("确认结束当前生命？")
+                    .button1("确认自杀")
+                    .button2("取消")
+                    .validResultHandler { response ->
+                        val confirmed = response.clickedButtonId() == 0
+                        player.foliaRun {
+                            if (confirmed) {
+                                suicide()
+                            } else {
+                                openMenu()
+                            }
+                        }
                     }
-                }
-        )
+            )
+        }
     }
 
     /**
