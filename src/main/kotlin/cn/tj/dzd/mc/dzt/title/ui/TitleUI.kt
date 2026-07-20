@@ -1,12 +1,14 @@
 package cn.tj.dzd.mc.dzt.title.ui
 
-import cn.tj.dzd.mc.dzt.menu.ui.Menu.openMenu
+import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
 import cn.tj.dzd.mc.dzt.title.PlayerTitle
 import cn.tj.dzd.mc.dzt.title.TitleEquipResult
 import cn.tj.dzd.mc.dzt.title.TitleService
+import cn.tj.dzd.mc.dzt.ui.MainMenuNavigation
 import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
+import cn.tj.dzd.mc.dzt.util.runForOnlinePlayer
 import cn.tj.dzd.mc.dzt.util.sendDZTError
 import cn.tj.dzd.mc.dzt.util.sendDZTSuccess
 import cn.tj.dzd.mc.dzt.util.sendDZTTip
@@ -23,7 +25,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /** Java 版和基岩版共用的称号选择界面。 */
@@ -47,20 +48,25 @@ object TitleUI {
      * @param player 需要打开称号菜单的玩家。
      */
     fun open(player: Player) {
-        val uuid = player.uniqueId
-        CompletableFuture.supplyAsync {
+        player.foliaRun {
+            loadTitles(uniqueId, isBePlayer())
+        }
+    }
+
+    private fun loadTitles(uuid: UUID, bedrockPlayer: Boolean) {
+        DztAsyncExecutor.supply {
             TitleService.getOwnedTitles(uuid)
         }.whenComplete { titles, error ->
-            if (error != null) {
-                player.sendDZTError("读取称号失败：${error.message ?: error.javaClass.simpleName}")
-                return@whenComplete
-            }
+            runForOnlinePlayer(uuid) {
+                if (error != null) {
+                    sendDZTError("读取称号失败：${error.message ?: error.javaClass.simpleName}")
+                    return@runForOnlinePlayer
+                }
 
-            player.foliaRun {
-                if (isBePlayer()) {
-                    openBedrock(this, titles)
+                if (bedrockPlayer) {
+                    openBedrock(this, titles.orEmpty())
                 } else {
-                    openJava(this, titles)
+                    openJava(this, titles.orEmpty())
                 }
             }
         }
@@ -91,7 +97,7 @@ object TitleUI {
             set('R', buildItem(XMaterial.BARREL) {
                 name = "§l§e返回主菜单"
             }) {
-                player.openMenu()
+                MainMenuNavigation.open(player)
             }
 
             slotsBy('@')
@@ -156,12 +162,15 @@ object TitleUI {
         }
 
         form.validResultHandler { response ->
-            when (val clicked = response.clickedButtonId()) {
-                0 -> player.foliaRun { openMenu() }
-                1 -> select(player, null)
-                else -> {
-                    val title = titles.getOrNull(clicked - 2) ?: return@validResultHandler
-                    openBedrockTitleDetail(player, title)
+            val clicked = response.clickedButtonId()
+            player.foliaRun {
+                when (clicked) {
+                    0 -> MainMenuNavigation.open(this)
+                    1 -> select(this, null)
+                    else -> {
+                        val title = titles.getOrNull(clicked - 2) ?: return@foliaRun
+                        openBedrockTitleDetail(this, title)
+                    }
                 }
             }
         }
@@ -183,19 +192,30 @@ object TitleUI {
                 .button1(primaryButton)
                 .button2("返回")
                 .validResultHandler { response ->
-                    if (response.clickedButtonId() == 0) {
-                        select(player, if (title.equipped) null else title.id)
-                    } else {
-                        open(player)
+                    val clicked = response.clickedButtonId()
+                    player.foliaRun {
+                        if (clicked == 0) {
+                            select(this, if (title.equipped) null else title.id)
+                        } else {
+                            open(this)
+                        }
                     }
                 }
                 .closedOrInvalidResultHandler(Runnable {
-                    open(player)
+                    player.foliaRun {
+                        open(this)
+                    }
                 })
         )
     }
 
     private fun select(player: Player, titleId: String?) {
+        player.foliaRun {
+            selectOnPlayerThread(this, titleId)
+        }
+    }
+
+    private fun selectOnPlayerThread(player: Player, titleId: String?) {
         val uuid = player.uniqueId
         if (!selectionsInProgress.add(uuid)) {
             player.sendDZTTip("称号正在处理中，请稍候。")
@@ -203,7 +223,7 @@ object TitleUI {
         }
 
         player.foliaCloseInventory()
-        CompletableFuture.supplyAsync {
+        DztAsyncExecutor.supply {
             if (titleId == null) {
                 TitleService.unequipTitle(uuid)
             } else {
@@ -211,22 +231,24 @@ object TitleUI {
             }
         }.whenComplete { result, error ->
             selectionsInProgress.remove(uuid)
-            if (error != null) {
-                player.sendDZTError("更改佩戴称号失败：${error.message ?: error.javaClass.simpleName}")
-                return@whenComplete
-            }
+            runForOnlinePlayer(uuid) {
+                if (error != null) {
+                    sendDZTError("更改佩戴称号失败：${error.message ?: error.javaClass.simpleName}")
+                    return@runForOnlinePlayer
+                }
 
-            when (result) {
-                TitleEquipResult.EQUIPPED -> player.sendDZTSuccess("已佩戴称号。")
-                TitleEquipResult.UNEQUIPPED -> player.sendDZTSuccess("已取消佩戴称号。")
-                TitleEquipResult.ALREADY_EQUIPPED -> player.sendDZTTip("已在佩戴该称号。")
-                TitleEquipResult.NOT_OWNED -> player.sendDZTError("你尚未拥有该称号。")
-                TitleEquipResult.FAILED -> player.sendDZTError("更改佩戴称号失败。")
-                null -> player.sendDZTError("更改佩戴称号失败。")
-            }
+                when (result) {
+                    TitleEquipResult.EQUIPPED -> sendDZTSuccess("已佩戴称号。")
+                    TitleEquipResult.UNEQUIPPED -> sendDZTSuccess("已取消佩戴称号。")
+                    TitleEquipResult.ALREADY_EQUIPPED -> sendDZTTip("已在佩戴该称号。")
+                    TitleEquipResult.NOT_OWNED -> sendDZTError("你尚未拥有该称号。")
+                    TitleEquipResult.FAILED -> sendDZTError("更改佩戴称号失败。")
+                    null -> sendDZTError("更改佩戴称号失败。")
+                }
 
-            if (result != TitleEquipResult.FAILED) {
-                open(player)
+                if (result != TitleEquipResult.FAILED) {
+                    open(this)
+                }
             }
         }
     }

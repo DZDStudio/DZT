@@ -1,8 +1,8 @@
 package cn.tj.dzd.mc.dzt.log
 
-import cn.tj.dzd.mc.dzt.data.DatabaseGuard
-import cn.tj.dzd.mc.dzt.data.table.PlayerLogRecord
-import cn.tj.dzd.mc.dzt.data.table.playerLogMapper
+import cn.tj.dzd.mc.dzt.core.RepositoryResult
+import cn.tj.dzd.mc.dzt.data.repository.PersistentPlayerLogRepository
+import cn.tj.dzd.mc.dzt.platform.SerialTaskQueue
 import cn.tj.dzd.mc.dzt.util.networkPing
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -17,39 +17,36 @@ import taboolib.common.platform.event.SubscribeEvent
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.RejectedExecutionException
 
 /**
  * 玩家行为日志服务。
  *
  * 日志表由外部数据库迁移创建，本服务只负责写入 `type`、`msg` 两列，`time` 使用数据库默认值。
- * 所有数据库操作都在单独的串行线程中执行，避免阻塞 Bukkit/Folia 的玩家线程。
+ * 所有数据库操作都在 DZT 异步执行器的串行队列中执行，避免阻塞 Bukkit/Folia 的玩家线程。
  */
 object PlayerLogService {
 
     private const val LOG_RETENTION_DAYS = 30L
     private const val MAX_MESSAGE_LENGTH = 128
     private val plainTextSerializer = PlainTextComponentSerializer.plainText()
-    private val executor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "DZT-PlayerLog").apply { isDaemon = true }
-    }
+    private val repository: PlayerLogRepository = PersistentPlayerLogRepository
+    private val queue = SerialTaskQueue()
 
     /**
      * 插件启用时清理超过 30 天的日志。
      */
     @Awake(LifeCycle.ACTIVE)
     fun cleanupExpiredLogsOnStartup() {
-        enqueue("清理玩家日志") {
+        enqueue {
             val cutoff = Timestamp.from(Instant.now().minus(LOG_RETENTION_DAYS, ChronoUnit.DAYS))
-            val deleted = playerLogMapper.rawDelete {
-                // ActionDelete 必须通过 where 挂载过滤条件，否则会生成无条件 DELETE。
-                where {
-                    "time" lt cutoff
+            when (val result = repository.deleteBefore(cutoff)) {
+                is RepositoryResult.Success -> {
+                    taboolib.common.platform.function.info(
+                        "玩家日志清理完成，删除 ${result.value} 条超过 ${LOG_RETENTION_DAYS} 天的记录。"
+                    )
                 }
+                RepositoryResult.Failure -> Unit
             }
-            taboolib.common.platform.function.info("玩家日志清理完成，删除 $deleted 条超过 ${LOG_RETENTION_DAYS} 天的记录。")
         }
     }
 
@@ -58,7 +55,7 @@ object PlayerLogService {
      */
     @Awake(LifeCycle.DISABLE)
     fun close() {
-        executor.shutdownNow()
+        queue.close()
     }
 
     /**
@@ -103,8 +100,8 @@ object PlayerLogService {
             .coerceAtLeast(0)
         val message = buildMessage(player, ping, detail)
 
-        enqueue("新增玩家日志") {
-            playerLogMapper.insert(PlayerLogRecord(type, message))
+        enqueue {
+            repository.append(type, message)
         }
     }
 
@@ -114,15 +111,10 @@ object PlayerLogService {
             .take(MAX_MESSAGE_LENGTH)
     }
 
-    private fun enqueue(action: String, block: () -> Unit) {
-        try {
-            executor.execute {
-                DatabaseGuard.execute(action) {
-                    block()
-                }
-            }
-        } catch (_: RejectedExecutionException) {
-            // 插件关闭后不再接受新的日志任务。
+    private fun enqueue(block: () -> Unit) {
+        queue.submit(block).exceptionally {
+            // 插件关闭后不再接受新的日志任务。数据库异常由 repository 统一处理。
+            Unit
         }
     }
 }

@@ -1,7 +1,7 @@
 package cn.tj.dzd.mc.dzt.ui
 
 import cn.tj.dzd.mc.dzt.util.Icon
-import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
+import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
 import cn.tj.dzd.mc.dzt.util.sendForm
 import org.bukkit.entity.Player
@@ -13,7 +13,7 @@ import taboolib.platform.util.buildItem
 /**
  * 图标选择回调。
  *
- * 回调接收打开 UI 的玩家与被选中的图标。
+ * 回调接收打开 UI 的玩家与被选中的图标，并在该玩家所属的 Folia 实体线程执行。
  */
 typealias IconSelectCallback = Player.(Icon) -> Unit
 
@@ -40,10 +40,12 @@ object IconSelectUI {
         icons: List<Icon> = Icon.entries.toList(),
         onSelect: IconSelectCallback,
     ) {
-        if (player.isBePlayer()) {
-            openBe(player, title, icons, onSelect)
-        } else {
-            openJe(player, title, icons, onSelect)
+        player.foliaRun {
+            if (isBePlayer()) {
+                openBeOnPlayerThread(this, title, icons, onSelect)
+            } else {
+                openJeOnPlayerThread(this, title, icons, onSelect)
+            }
         }
     }
 
@@ -61,14 +63,26 @@ object IconSelectUI {
         icons: List<Icon> = Icon.entries.toList(),
         onSelect: IconSelectCallback,
     ) {
+        player.foliaRun {
+            openJeOnPlayerThread(this, title, icons, onSelect)
+        }
+    }
+
+    private fun openJeOnPlayerThread(
+        player: Player,
+        title: String,
+        icons: List<Icon>,
+        onSelect: IconSelectCallback,
+    ) {
         require(icons.isNotEmpty()) { "图标列表不能为空" }
 
-        val iconByMaterial = icons.associateBy { it.jeMaterial }
         JavaPageableChestUI.open(player, title, icons.map { it.toJeItem() }) {
             onClick { element ->
-                val icon = iconByMaterial[element.type] ?: return@onClick
-                clicker.foliaCloseInventory()
-                player.onSelect(icon)
+                val icon = icons.firstOrNull { it.xMaterial.isSimilar(element) } ?: return@onClick
+                player.foliaRun {
+                    closeInventory()
+                    onSelect(icon)
+                }
             }
         }
     }
@@ -87,6 +101,17 @@ object IconSelectUI {
         icons: List<Icon> = Icon.entries.toList(),
         onSelect: IconSelectCallback,
     ) {
+        player.foliaRun {
+            openBeOnPlayerThread(this, title, icons, onSelect)
+        }
+    }
+
+    private fun openBeOnPlayerThread(
+        player: Player,
+        title: String,
+        icons: List<Icon>,
+        onSelect: IconSelectCallback,
+    ) {
         require(icons.isNotEmpty()) { "图标列表不能为空" }
 
         val form = SimpleForm.builder()
@@ -98,13 +123,15 @@ object IconSelectUI {
 
         form.validResultHandler { response ->
             val icon = icons.getOrNull(response.clickedButtonId()) ?: return@validResultHandler
-            player.onSelect(icon)
+            player.foliaRun {
+                onSelect(icon)
+            }
         }
         player.sendForm(form)
     }
 
     private fun Icon.toJeItem(): ItemStack {
-        return buildItem(jeMaterial) {
+        return buildItem(xMaterial) {
             name = "§e$displayName"
             lore += "§7$jeName"
             lore += "§8$beTexturePath"

@@ -1,5 +1,6 @@
 package cn.tj.dzd.mc.dzt.title
 
+import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
 import org.bukkit.entity.Player
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -30,7 +31,7 @@ object TitleApi {
         displayName: String,
         description: String,
     ): CompletableFuture<TitleGrantResult> {
-        return CompletableFuture.supplyAsync {
+        return DztAsyncExecutor.supply {
             TitleService.grantTitle(playerUuid, titleId, displayName, description)
         }
     }
@@ -102,7 +103,7 @@ object TitleApi {
         playerUuid: UUID,
         titleId: String,
     ): CompletableFuture<TitleRevokeResult> {
-        return CompletableFuture.supplyAsync {
+        return DztAsyncExecutor.supply {
             TitleService.revokeTitle(playerUuid, titleId)
         }
     }
@@ -130,7 +131,7 @@ object TitleApi {
      */
     @JvmStatic
     fun getOwnedTitles(playerUuid: UUID): CompletableFuture<List<PlayerTitle>> {
-        return CompletableFuture.supplyAsync {
+        return DztAsyncExecutor.supply {
             TitleService.getOwnedTitles(playerUuid)
         }
     }
@@ -143,8 +144,21 @@ object TitleApi {
      */
     @JvmStatic
     fun getEquippedTitle(playerUuid: UUID): CompletableFuture<PlayerTitle?> {
-        return CompletableFuture.supplyAsync {
+        return DztAsyncExecutor.supply {
             TitleService.getEquippedTitle(playerUuid)
         }
+    }
+
+    /**
+     * 读取聊天渲染使用的已佩戴称号快照。
+     *
+     * 该方法不访问数据库，可在聊天渲染线程中调用。玩家缓存尚未就绪或未佩戴时返回 null。
+     *
+     * @param playerUuid 玩家 UUID。
+     * @return 已佩戴称号的非阻塞快照。
+     */
+    @JvmStatic
+    fun getCachedEquippedTitle(playerUuid: UUID): PlayerTitle? {
+        return TitleService.getCachedEquippedTitle(playerUuid)
     }
 }

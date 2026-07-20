@@ -3,18 +3,20 @@ package cn.tj.dzd.mc.dzt.economy.ui
 import cn.tj.dzd.mc.dzt.economy.EconomyTransferResult
 import cn.tj.dzd.mc.dzt.economy.EconomyTransferStatus
 import cn.tj.dzd.mc.dzt.economy.ServiceEconomy
-import cn.tj.dzd.mc.dzt.menu.ui.Menu.openMenu
+import cn.tj.dzd.mc.dzt.ui.MainMenuNavigation
+import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelection
 import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelectUI
 import cn.tj.dzd.mc.dzt.ui.PaperDialogTextUI
 import cn.tj.dzd.mc.dzt.util.DEFAULT_FOLIA_TELEPORT_SOUND
+import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
 import cn.tj.dzd.mc.dzt.util.foliaPlaySound
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
+import cn.tj.dzd.mc.dzt.util.runForOnlinePlayer
 import cn.tj.dzd.mc.dzt.util.sendDZTError
 import cn.tj.dzd.mc.dzt.util.sendDZTSuccess
 import cn.tj.dzd.mc.dzt.util.sendDZTTip
 import cn.tj.dzd.mc.dzt.util.sendForm
-import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.geysermc.cumulus.form.CustomForm
 import org.geysermc.cumulus.form.ModalForm
@@ -25,6 +27,7 @@ import taboolib.module.ui.type.Chest
 import taboolib.platform.util.buildItem
 import java.math.BigDecimal
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -48,21 +51,28 @@ object TransferUI {
             selectLore = "§7点击向该玩家转账",
             backLabel = "§l§e返回主菜单",
             onBack = {
-                openMenu()
+                MainMenuNavigation.open(this)
             },
             onSelect = { target ->
-                openAmountInput(this, TransferTarget(target.uniqueId, target.name))
+                selectTransferTarget(this, target)
             },
         )
     }
 
-    private fun openAmountInput(player: Player, target: TransferTarget) {
-        if (!target.isOnline()) {
-            player.sendDZTError("收款玩家已离线。")
-            openTransferUI(player)
-            return
+    private fun selectTransferTarget(sender: Player, target: OnlinePlayerSelection) {
+        val targetSnapshot = TransferTarget(target.uuid, target.name)
+        sender.foliaRun {
+            openAmountInput(this, targetSnapshot)
         }
+    }
 
+    private fun openAmountInput(player: Player, target: TransferTarget) {
+        whenTargetIsOnline(player, target) {
+            openAmountInputForOnlineTarget(this, target)
+        }
+    }
+
+    private fun openAmountInputForOnlineTarget(player: Player, target: TransferTarget) {
         if (player.isBePlayer()) {
             openBedrockAmountInput(player, target)
         } else {
@@ -105,12 +115,12 @@ object TransferUI {
             return
         }
 
-        if (!target.isOnline()) {
-            player.sendDZTError("收款玩家已离线。")
-            openTransferUI(player)
-            return
+        whenTargetIsOnline(player, target) {
+            openConfirmationForOnlineTarget(this, target, amount)
         }
+    }
 
+    private fun openConfirmationForOnlineTarget(player: Player, target: TransferTarget, amount: BigDecimal) {
         if (player.isBePlayer()) {
             openBedrockConfirmation(player, target, amount)
         } else {
@@ -147,7 +157,7 @@ object TransferUI {
                     return@set
                 }
                 handled = true
-                player.closeInventory()
+                player.foliaCloseInventory()
                 executeTransfer(player, target, amount)
             }
             set('N', buildItem(XMaterial.REDSTONE_BLOCK) {
@@ -158,7 +168,7 @@ object TransferUI {
                     return@set
                 }
                 handled = true
-                player.closeInventory()
+                player.foliaCloseInventory()
                 openTransferUI(player)
             }
         }
@@ -190,36 +200,55 @@ object TransferUI {
     }
 
     private fun executeTransfer(player: Player, target: TransferTarget, amount: BigDecimal) {
-        if (!target.isOnline()) {
-            player.sendDZTError("收款玩家已离线。")
-            openTransferUI(player)
-            return
+        whenTargetIsOnline(player, target) {
+            startTransfer(this, target, amount)
         }
-        if (!transfersInProgress.add(player.uniqueId)) {
+    }
+
+    private fun startTransfer(player: Player, target: TransferTarget, amount: BigDecimal) {
+        val sender = TransferSender(player.uniqueId, player.name)
+        if (!transfersInProgress.add(sender.uuid)) {
             player.sendDZTError("已有一笔转账正在处理中，请稍后再试。")
             return
         }
 
         player.sendDZTTip("正在处理向 ${target.name} 的转账……")
-        ServiceEconomy.transfer(player.uniqueId, target.uuid, amount).whenComplete { result, error ->
-            transfersInProgress.remove(player.uniqueId)
+        ServiceEconomy.transfer(sender.uuid, target.uuid, amount).whenComplete { result, error ->
+            transfersInProgress.remove(sender.uuid)
             if (error != null) {
                 severe(
                     "ServiceIO 转账调用异常。",
-                    "转出玩家 UUID: ${player.uniqueId}",
+                    "转出玩家 UUID: ${sender.uuid}",
                     "接收玩家 UUID: ${target.uuid}",
                     error.stackTraceToString(),
                 )
-                player.sendDZTError("转账失败，经济服务发生异常。")
+                runForOnlinePlayer(sender.uuid) {
+                    sendDZTError("转账失败，经济服务发生异常。")
+                }
                 return@whenComplete
             }
 
-            notifyTransferResult(player, target, result)
+            if (result == null) {
+                severe(
+                    "ServiceIO 转账调用未返回结果。",
+                    "转出玩家 UUID: ${sender.uuid}",
+                    "接收玩家 UUID: ${target.uuid}",
+                )
+                runForOnlinePlayer(sender.uuid) {
+                    sendDZTError("转账失败，经济服务未返回结果。")
+                }
+                return@whenComplete
+            }
+
+            runForOnlinePlayer(sender.uuid) {
+                notifyTransferResult(this, sender, target, result)
+            }
         }
     }
 
     private fun notifyTransferResult(
         player: Player,
+        sender: TransferSender,
         target: TransferTarget,
         result: EconomyTransferResult,
     ) {
@@ -231,9 +260,9 @@ object TransferUI {
                 player.sendDZTSuccess("已向 ${target.name} 转账 $amount DDB$balanceText。")
                 player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
 
-                Bukkit.getPlayer(target.uuid)?.takeIf { it.isOnline }?.let { receiver ->
-                    receiver.sendDZTSuccess("收到 ${player.name} 的转账 $amount DDB。")
-                    receiver.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(target.uuid) {
+                    sendDZTSuccess("收到 ${sender.name} 的转账 $amount DDB。")
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
                 }
             }
 
@@ -271,13 +300,40 @@ object TransferUI {
                 player.sendDZTError("转账与自动退款均失败，请立即联系管理员核对账户。")
         }
     }
+
+    private fun whenTargetIsOnline(
+        player: Player,
+        target: TransferTarget,
+        onOnline: Player.() -> Unit,
+    ) {
+        val playerId = player.uniqueId
+        target.isAvailable().whenComplete { available, error ->
+            runForOnlinePlayer(playerId) {
+                if (error != null || available != true) {
+                    showTargetUnavailable(this)
+                    return@runForOnlinePlayer
+                }
+                onOnline(this)
+            }
+        }
+    }
+
+    private fun showTargetUnavailable(player: Player) {
+        player.sendDZTError("收款玩家已离线。")
+        openTransferUI(player)
+    }
 }
+
+private data class TransferSender(
+    val uuid: UUID,
+    val name: String,
+)
 
 private data class TransferTarget(
     val uuid: UUID,
     val name: String,
 ) {
-    fun isOnline(): Boolean {
-        return Bukkit.getPlayer(uuid)?.isOnline == true
+    fun isAvailable(): CompletableFuture<Boolean> {
+        return runForOnlinePlayer(uuid) { }
     }
 }

@@ -1,20 +1,19 @@
 package cn.tj.dzd.mc.dzt.route
 
-import cn.tj.dzd.mc.dzt.data.DatabaseGuard
 import cn.tj.dzd.mc.dzt.data.config
-import cn.tj.dzd.mc.dzt.data.table.preferredRouteRecordMapper
+import cn.tj.dzd.mc.dzt.data.repository.PersistentPreferredRouteRepository
+import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
 import cn.tj.dzd.mc.dzt.teleport.ui.sendTeleportSuccess
 import cn.tj.dzd.mc.dzt.util.DEFAULT_FOLIA_TELEPORT_SOUND
 import cn.tj.dzd.mc.dzt.util.foliaPlaySound
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
-import org.bukkit.entity.Player
+import cn.tj.dzd.mc.dzt.util.runForOnlinePlayer
 import org.bukkit.event.player.PlayerJoinEvent
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.expansion.DurationType
 import taboolib.expansion.submitChain
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 
 object PreferredRouteService {
     private const val JAVA_PORT = 26111
@@ -22,6 +21,7 @@ object PreferredRouteService {
     private const val ROUTE_COOLDOWN_MILLIS = 30_000L
 
     private val routeCooldowns = mutableMapOf<UUID, Long>()
+    private val application = PreferredRouteApplicationService(PersistentPreferredRouteRepository)
 
     @SubscribeEvent
     fun onPlayerJoin(event: PlayerJoinEvent) {
@@ -31,92 +31,113 @@ object PreferredRouteService {
             return
         }
 
-        CompletableFuture.supplyAsync {
-            isPreferredPlayer(player.uniqueId)
-        }.whenComplete { preferred, error ->
-            if (error != null || preferred != true || !player.isOnline) {
-                return@whenComplete
-            }
-            val now = System.currentTimeMillis()
-            val canTransfer = synchronized(routeCooldowns) {
-                val lastTransfer = routeCooldowns[player.uniqueId]
-                if (lastTransfer != null && now - lastTransfer < ROUTE_COOLDOWN_MILLIS) {
-                    false
-                } else {
-                    routeCooldowns[player.uniqueId] = now
-                    true
+        player.foliaRun {
+            val snapshot = PreferredRoutePlayerSnapshot(uniqueId, isBePlayer())
+            DztAsyncExecutor.supply {
+                isPreferredPlayer(snapshot.uuid)
+            }.whenComplete { preferred, error ->
+                if (error != null || preferred != true) {
+                    return@whenComplete
                 }
-            }
-            if (!canTransfer) {
-                return@whenComplete
-            }
-            player.foliaRun {
-                transfer(player, targetIp)
+                runForOnlinePlayer(snapshot.uuid) {
+                    if (tryAcquireRouteCooldown(snapshot.uuid)) {
+                        transfer(targetIp, snapshot)
+                    }
+                }
             }
         }
     }
 
     fun isPreferredPlayer(uuid: UUID): Boolean {
-        return DatabaseGuard.execute("查询优选线路玩家", false) {
-            preferredRouteRecordMapper.findOne {
-                "uuid" eq uuid.toString()
-            } != null
-        }
+        return application.isPreferred(uuid)
     }
 
-    private fun transfer(player: Player, targetIp: String) {
+    private fun transfer(targetIp: String, snapshot: PreferredRoutePlayerSnapshot) {
         submitChain {
-            if (player.isBePlayer()) {
+            if (snapshot.isBedrock) {
                 wait(1000 * 3, DurationType.MILLIS)
             }
             sync {
-                player.sendTeleportSuccess("尊敬的优选用户，您将于 6 秒后重定向至优选线路！")
-                player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(snapshot.uuid) {
+                    sendTeleportSuccess("尊敬的优选用户，您将于 6 秒后重定向至优选线路！")
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                }
             }
 
             wait(1000, DurationType.MILLIS)
 
             sync {
-                player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(snapshot.uuid) {
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                }
             }
 
             wait(1000, DurationType.MILLIS)
 
             sync {
-                player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(snapshot.uuid) {
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                }
             }
 
             wait(1000, DurationType.MILLIS)
 
             sync {
-                player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(snapshot.uuid) {
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                }
             }
 
             wait(1000, DurationType.MILLIS)
 
             sync {
-                player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(snapshot.uuid) {
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                }
             }
 
             wait(1000, DurationType.MILLIS)
 
             sync {
-                player.foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                runForOnlinePlayer(snapshot.uuid) {
+                    foliaPlaySound(DEFAULT_FOLIA_TELEPORT_SOUND, pitch = 0.65f)
+                }
             }
 
             wait(1000, DurationType.MILLIS)
 
-            sync {
-                if (player.isBePlayer()) {
-                    runCatching {
-                        org.geysermc.geyser.api.GeyserApi.api()
-                            .connectionByUuid(player.uniqueId)
-                            ?.transfer(targetIp, BEDROCK_PORT)
+            async {
+                runForOnlinePlayer(snapshot.uuid) {
+                    if (snapshot.isBedrock) {
+                        runCatching {
+                            org.geysermc.geyser.api.GeyserApi.api()
+                                .connectionByUuid(snapshot.uuid)
+                                ?.transfer(targetIp, BEDROCK_PORT)
+                        }
+                    } else {
+                        transfer(targetIp, JAVA_PORT)
                     }
-                } else {
-                    player.transfer(targetIp, JAVA_PORT)
                 }
             }
         }
     }
+
+    private fun tryAcquireRouteCooldown(uuid: UUID): Boolean {
+        val now = System.currentTimeMillis()
+        return synchronized(routeCooldowns) {
+            routeCooldowns.entries.removeIf { now - it.value >= ROUTE_COOLDOWN_MILLIS }
+            val lastTransfer = routeCooldowns[uuid]
+            if (lastTransfer != null && now - lastTransfer < ROUTE_COOLDOWN_MILLIS) {
+                false
+            } else {
+                routeCooldowns[uuid] = now
+                true
+            }
+        }
+    }
 }
+
+private data class PreferredRoutePlayerSnapshot(
+    val uuid: UUID,
+    val isBedrock: Boolean,
+)

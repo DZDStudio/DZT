@@ -1,6 +1,6 @@
 package cn.tj.dzd.mc.dzt.teleport.ui
 
-import cn.tj.dzd.mc.dzt.menu.ui.Menu.openMenu
+import cn.tj.dzd.mc.dzt.ui.MainMenuNavigation
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
@@ -21,10 +21,10 @@ object Teleport {
      * 会根据玩家客户端类型自动选择 Java 版箱子菜单或基岩版表单菜单。
      */
     fun Player.openTeleport() {
-        if (isBePlayer()) {
-            openBedrock(this)
-        } else {
-            foliaRun {
+        foliaRun {
+            if (isBePlayer()) {
+                openBedrock(this)
+            } else {
                 openJava(this)
             }
         }
@@ -40,12 +40,15 @@ object Teleport {
                 .button("死亡点", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
                 .button("回床", FormImage.Type.PATH, "textures/items/bed_red.png")
                 .validResultHandler { response ->
-                    when (response.clickedButtonId()) {
-                        0 -> player.openMenu()
-                        1 -> TPA.openTPAUI(player)
-                        2 -> Home.openHomeUI(player)
-                        3 -> Back.openBackUI(player)
-                        4 -> Bed.teleportBedUI(player)
+                    val clicked = response.clickedButtonId()
+                    player.foliaRun {
+                        when (clicked) {
+                            0 -> MainMenuNavigation.open(this)
+                            1 -> TPA.openTPAUI(this)
+                            2 -> Home.openHomeUI(this)
+                            3 -> Back.openBackUI(this)
+                            4 -> Bed.teleportBedUI(this)
+                        }
                     }
                 }
         )
@@ -67,7 +70,7 @@ object Teleport {
             onClick(lock = true) {}
             set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) { name = " " })
             set('R', buildItem(XMaterial.BARREL) { name = "§l§e返回主菜单" }) {
-                player.openMenu()
+                MainMenuNavigation.open(player)
             }
             set('M', buildItem(XMaterial.ENDER_PEARL) { name = "§l§6传送菜单" })
 

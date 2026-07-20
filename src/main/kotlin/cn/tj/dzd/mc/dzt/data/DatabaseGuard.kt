@@ -6,6 +6,7 @@ import cn.tj.dzd.mc.dzt.util.foliaKick
 import org.bukkit.Bukkit
 import taboolib.common.platform.function.severe
 import taboolib.common.platform.function.submit
+import taboolib.platform.util.onlinePlayers
 
 /**
  * 数据库操作保护工具。
@@ -82,10 +83,11 @@ object DatabaseGuard {
 
     private fun kickPlayersAndShutdown() {
         submit {
-            Bukkit.getOnlinePlayers().forEach { player ->
+            onlinePlayers.forEach { player ->
                 player.foliaKick(PLAYER_KICK_MESSAGE)
             }
             submit(delay = SHUTDOWN_DELAY_TICKS) {
+                // TabooLib can disable this plugin, but a fatal database outage requires a full server shutdown.
                 Bukkit.shutdown()
             }
         }

@@ -4,6 +4,7 @@ package cn.tj.dzd.mc.dzt.ui
 
 import io.papermc.paper.dialog.Dialog
 import net.kyori.adventure.text.ComponentLike
+import cn.tj.dzd.mc.dzt.util.foliaRun
 import org.bukkit.entity.Player
 
 private const val TEXT_INPUT_KEY = "text"
@@ -72,7 +73,10 @@ object PaperDialogTextUI {
                 yes = {
                     callback { audience ->
                         val player = audience as? Player ?: return@callback
-                        player.onSubmit(text(TEXT_INPUT_KEY).orEmpty())
+                        val input = text(TEXT_INPUT_KEY).orEmpty()
+                        player.foliaRun {
+                            onSubmit(input)
+                        }
                     }
                 },
                 no = {
@@ -153,7 +157,7 @@ fun Player.openPaperDialogTextUI(
     onSubmit: PaperDialogTextCallback,
 ): Dialog {
     val dialog = PaperDialogTextUI.create(title, defaultContent, inputLabel, onSubmit)
-    showDialog(dialog)
+    showFoliaPaperDialog(dialog)
     return dialog
 }
 

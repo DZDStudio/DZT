@@ -3,7 +3,6 @@ package cn.tj.dzd.mc.dzt.menu
 import cn.tj.dzd.mc.dzt.menu.ui.Menu
 import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.isBePlayer
-import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.inventory.ClickType
@@ -100,10 +99,10 @@ object GiveClock {
     /**
      * 判断物品是否是菜单钟。
      *
-     * @return 当物品材质为钟且包含 [MENU_CLOCK_LORE] lore 标记时返回 `true`。
+     * @return 当物品是 TabooLib 识别的钟且包含 [MENU_CLOCK_LORE] lore 标记时返回 `true`。
      */
     fun ItemStack?.isMenuClock(): Boolean {
-        return this != null && type == Material.CLOCK && hasLore(MENU_CLOCK_LORE)
+        return this != null && XMaterial.CLOCK.isSimilar(this) && hasLore(MENU_CLOCK_LORE)
     }
 
     /**

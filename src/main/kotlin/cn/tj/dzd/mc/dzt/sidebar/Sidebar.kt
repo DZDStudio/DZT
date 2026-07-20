@@ -13,8 +13,11 @@ import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.common.platform.function.severe
-import taboolib.common.platform.function.submit
+import taboolib.common.platform.function.submit as submitTask
 import taboolib.common.platform.service.PlatformExecutor
+import taboolib.module.nms.sendScoreboard
+import taboolib.platform.util.onlinePlayers
+import taboolib.platform.util.submit
 import java.math.BigDecimal
 import java.time.LocalTime
 import java.time.ZoneId
@@ -22,21 +25,26 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 object Sidebar {
     private const val SERVER_QQ_GROUP = "747121127"
-    private const val OBJECTIVE_NAME = "dzt_sidebar"
     private const val PLAYER_SYNC_PERIOD_TICKS = 20L
     private const val UPDATE_PERIOD_TICKS = 100L
     private val beijingZone: ZoneId = ZoneId.of("Asia/Shanghai")
     private val sidebarTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
     private var playerSyncTask: PlatformExecutor.PlatformTask? = null
-    private val sidebarTasks = ConcurrentHashMap<UUID, PlatformExecutor.PlatformTask>()
-    private val sidebarStates = ConcurrentHashMap<UUID, PacketSidebarState>()
-    private val balanceRequests = ConcurrentHashMap.newKeySet<UUID>()
-    private val reportedBalanceFailures = ConcurrentHashMap.newKeySet<UUID>()
-    private val lineEntries = listOf("§0", "§1", "§2", "§3", "§4", "§5", "§6", "§7", "§8", "§9")
+    private val sidebarTasks = ConcurrentHashMap<UUID, SidebarTask>()
+    private val balanceRequests = ConcurrentHashMap<UUID, Long>()
+    private val reportedBalanceFailures = ConcurrentHashMap<UUID, Long>()
+    private val taskGeneration = AtomicLong()
+
+    private data class SidebarTask(
+        val player: Player,
+        val generation: Long,
+        val task: PlatformExecutor.PlatformTask,
+    )
 
     /**
      * 启动侧边栏在线玩家同步任务。
@@ -50,7 +58,7 @@ object Sidebar {
         }
 
         syncOnlinePlayers()
-        playerSyncTask = submit(delay = 1L, period = PLAYER_SYNC_PERIOD_TICKS) {
+        playerSyncTask = submitTask(delay = 1L, period = PLAYER_SYNC_PERIOD_TICKS) {
             syncOnlinePlayers()
         }
     }
@@ -62,9 +70,8 @@ object Sidebar {
     fun stop() {
         playerSyncTask?.cancel()
         playerSyncTask = null
-        sidebarTasks.values.forEach { it.cancel() }
+        sidebarTasks.values.forEach { it.task.cancel() }
         sidebarTasks.clear()
-        sidebarStates.clear()
         balanceRequests.clear()
         reportedBalanceFailures.clear()
     }
@@ -82,72 +89,84 @@ object Sidebar {
      */
     @SubscribeEvent
     fun onPlayerQuit(event: PlayerQuitEvent) {
-        val uuid = event.player.uniqueId
-        sidebarTasks.remove(uuid)?.cancel()
-        sidebarStates.remove(uuid)
-        balanceRequests.remove(uuid)
-        reportedBalanceFailures.remove(uuid)
+        removeSidebarTask(event.player.uniqueId, event.player)
     }
 
     private fun syncOnlinePlayers() {
-        val onlinePlayers = Bukkit.getOnlinePlayers()
-        val onlineIds = onlinePlayers.mapTo(mutableSetOf()) { it.uniqueId }
+        val players = onlinePlayers
+        val onlineIds = players.mapTo(mutableSetOf()) { it.uniqueId }
 
         sidebarTasks.keys
             .filter { it !in onlineIds }
             .forEach {
-                sidebarTasks.remove(it)?.cancel()
-                sidebarStates.remove(it)
-                balanceRequests.remove(it)
-                reportedBalanceFailures.remove(it)
+                removeSidebarTask(it)
             }
 
-        onlinePlayers.forEach { player ->
-            if (!sidebarTasks.containsKey(player.uniqueId)) {
-                startSidebarTask(player)
-            }
-        }
+        players.forEach(::startSidebarTask)
     }
 
     private fun startSidebarTask(player: Player) {
         val uuid = player.uniqueId
-        sidebarTasks.remove(uuid)?.cancel()
-        sidebarStates.remove(uuid)
-        sidebarTasks[uuid] = submit(async = true, delay = 1L, period = UPDATE_PERIOD_TICKS) {
-            refreshSidebar(player, uuid)
+        sidebarTasks.compute(uuid) { _, current ->
+            if (current != null && current.player === player) {
+                current
+            } else {
+                current?.task?.cancel()
+                val generation = taskGeneration.incrementAndGet()
+                balanceRequests.remove(uuid)
+                reportedBalanceFailures.remove(uuid)
+                val task = player.submit(delay = 1L, period = UPDATE_PERIOD_TICKS) {
+                    refreshSidebar(player, uuid, generation)
+                }
+                SidebarTask(player, generation, task)
+            }
         }
     }
 
-    private fun refreshSidebar(player: Player, uuid: UUID) {
-        if (!player.isOnline) {
-            sidebarTasks.remove(uuid)?.cancel()
+    private fun refreshSidebar(player: Player, uuid: UUID, generation: Long) {
+        if (!isCurrentTask(uuid, generation)) {
             return
         }
-        if (!balanceRequests.add(uuid)) {
+        if (!player.isOnline) {
+            removeSidebarTask(uuid, player, generation)
+            return
+        }
+        if (balanceRequests.putIfAbsent(uuid, generation) != null) {
+            return
+        }
+        if (!isCurrentTask(uuid, generation)) {
+            balanceRequests.remove(uuid, generation)
             return
         }
 
         runCatching {
             ServiceEconomy.getBalance(uuid).whenComplete { balance, balanceError ->
-                balanceRequests.remove(uuid)
-                if (!player.isOnline) {
-                    return@whenComplete
-                }
-                if (balanceError != null && reportedBalanceFailures.add(uuid)) {
-                    severe(
-                        "ServiceIO 余额查询失败，侧边栏将暂时隐藏余额。",
-                        "玩家 UUID: $uuid",
-                        balanceError.stackTraceToString(),
-                    )
-                } else if (balanceError == null) {
-                    reportedBalanceFailures.remove(uuid)
-                }
-
                 player.foliaRun {
+                    balanceRequests.remove(uuid, generation)
+                    if (!isCurrentTask(uuid, generation)) {
+                        return@foliaRun
+                    }
+
+                    if (!isOnline) {
+                        removeSidebarTask(uuid, player, generation)
+                        return@foliaRun
+                    }
+
+                    if (balanceError != null && reportedBalanceFailures.putIfAbsent(uuid, generation) == null) {
+                        severe(
+                            "ServiceIO 余额查询失败，侧边栏将暂时隐藏余额。",
+                            "玩家 UUID: $uuid",
+                            balanceError.stackTraceToString(),
+                        )
+                    } else if (balanceError == null) {
+                        reportedBalanceFailures.remove(uuid, generation)
+                    }
+
                     updateSidebar(balance?.amount)
                 }.whenComplete { success, error ->
                     if (error != null) {
-                        sidebarTasks.remove(uuid)?.cancel()
+                        balanceRequests.remove(uuid, generation)
+                        removeSidebarTask(uuid, player, generation)
                         severe(
                             "侧边栏刷新失败。",
                             "玩家 UUID: $uuid",
@@ -157,21 +176,49 @@ object Sidebar {
                     }
 
                     if (!success) {
-                        sidebarTasks.remove(uuid)?.cancel()
+                        balanceRequests.remove(uuid, generation)
+                        removeSidebarTask(uuid, player, generation)
                     }
                 }
             }
-        }.onFailure {
-            balanceRequests.remove(uuid)
-            sidebarTasks.remove(uuid)?.cancel()
-            throw it
+        }.onFailure { error ->
+            balanceRequests.remove(uuid, generation)
+            removeSidebarTask(uuid, player, generation)
+            severe(
+                "侧边栏余额查询启动失败。",
+                "玩家 UUID: $uuid",
+                error.stackTraceToString(),
+            )
+        }
+    }
+
+    private fun isCurrentTask(uuid: UUID, generation: Long): Boolean {
+        return sidebarTasks[uuid]?.generation == generation
+    }
+
+    private fun removeSidebarTask(
+        uuid: UUID,
+        expectedPlayer: Player? = null,
+        expectedGeneration: Long? = null,
+    ) {
+        sidebarTasks.computeIfPresent(uuid) { _, current ->
+            if (
+                (expectedPlayer == null || current.player === expectedPlayer) &&
+                (expectedGeneration == null || current.generation == expectedGeneration)
+            ) {
+                current.task.cancel()
+                balanceRequests.remove(uuid, current.generation)
+                reportedBalanceFailures.remove(uuid, current.generation)
+                null
+            } else {
+                current
+            }
         }
     }
 
     private fun Player.updateSidebar(balance: BigDecimal?) {
         val sidebarLines = buildSidebarLines(balance)
-        val state = sidebarStates.computeIfAbsent(uniqueId) { PacketSidebarState() }
-        PacketSidebar.update(this, OBJECTIVE_NAME, TextLogo, sidebarLines, lineEntries, state)
+        sendScoreboard(TextLogo, *sidebarLines.toTypedArray())
     }
 
     private fun Player.buildSidebarLines(balance: BigDecimal?): List<String> {

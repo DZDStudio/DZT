@@ -1,9 +1,7 @@
 package cn.tj.dzd.mc.dzt.title
 
-import cn.tj.dzd.mc.dzt.data.DatabaseGuard
-import cn.tj.dzd.mc.dzt.data.table.PlayerTitleRecord
-import cn.tj.dzd.mc.dzt.data.table.playerTitleRecordMapper
-import org.bukkit.Bukkit
+import cn.tj.dzd.mc.dzt.data.repository.PersistentTitleRepository
+import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
 import org.bukkit.entity.Player
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent
 import org.bukkit.event.player.PlayerJoinEvent
@@ -11,9 +9,8 @@ import org.bukkit.event.player.PlayerQuitEvent
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
 import taboolib.common.platform.event.SubscribeEvent
-import java.util.Locale
+import taboolib.platform.util.onlinePlayers
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -24,10 +21,7 @@ import java.util.concurrent.atomic.AtomicLong
  */
 internal object TitleService {
 
-    private const val MAX_TITLE_ID_LENGTH = 64
-    private const val MAX_DISPLAY_NAME_LENGTH = 64
-    private const val MAX_DESCRIPTION_LENGTH = 256
-    private val validTitleId = Regex("[a-z0-9._-]+")
+    private val application = TitleApplicationService(PersistentTitleRepository)
 
     private val equippedTitleCache = ConcurrentHashMap<UUID, PlayerTitle>()
     private val cacheLoadTokens = ConcurrentHashMap<UUID, Long>()
@@ -51,29 +45,7 @@ internal object TitleService {
         displayName: String,
         description: String,
     ): TitleGrantResult {
-        val normalizedId = normalizeTitleId(titleId)
-        val normalizedDisplayName = normalizeDisplayName(displayName)
-        val normalizedDescription = normalizeDescription(description)
-        val recordId = recordId(uuid, normalizedId)
-
-        return DatabaseGuard.execute("授予称号", TitleGrantResult.FAILED) {
-            if (playerTitleRecordMapper.findById(recordId) != null) {
-                return@execute TitleGrantResult.ALREADY_OWNED
-            }
-
-            playerTitleRecordMapper.insert(
-                PlayerTitleRecord(
-                    recordId = recordId,
-                    uuid = uuid,
-                    titleId = normalizedId,
-                    displayName = normalizedDisplayName,
-                    description = normalizedDescription,
-                    acquiredAt = System.currentTimeMillis(),
-                    equipped = false,
-                )
-            )
-            TitleGrantResult.GRANTED
-        }
+        return application.grant(uuid, titleId, displayName, description)
     }
 
     /**
@@ -87,15 +59,7 @@ internal object TitleService {
      * @throws IllegalArgumentException 称号 ID 不合法时抛出。
      */
     fun revokeTitle(uuid: UUID, titleId: String): TitleRevokeResult {
-        val normalizedId = normalizeTitleId(titleId)
-        val targetRecordId = recordId(uuid, normalizedId)
-        val result = DatabaseGuard.execute("移除玩家称号", TitleRevokeResult.FAILED) {
-            playerTitleRecordMapper.transaction {
-                findById(targetRecordId) ?: return@transaction TitleRevokeResult.NOT_OWNED
-                deleteById(targetRecordId)
-                TitleRevokeResult.REVOKED
-            }.getOrThrow()
-        }
+        val result = application.revoke(uuid, titleId)
 
         if (result == TitleRevokeResult.REVOKED) {
             updateEquippedTitleCache(uuid, getEquippedTitle(uuid))
@@ -110,12 +74,7 @@ internal object TitleService {
      * @return 按获得时间正序排列的称号。
      */
     fun getOwnedTitles(uuid: UUID): List<PlayerTitle> {
-        return DatabaseGuard.execute("读取玩家称号", emptyList()) {
-            playerTitleRecordMapper.findAll {
-                "uuid" eq uuid.toString()
-            }.sortedBy { it.acquiredAt }
-                .map { it.toPlayerTitle() }
-        }
+        return application.getOwned(uuid)
     }
 
     /**
@@ -125,12 +84,7 @@ internal object TitleService {
      * @return 当前称号，未佩戴时返回 null。
      */
     fun getEquippedTitle(uuid: UUID): PlayerTitle? {
-        return DatabaseGuard.execute<PlayerTitle?>("读取已佩戴称号", null) {
-            playerTitleRecordMapper.findOne {
-                "uuid" eq uuid.toString()
-                "equipped" eq true
-            }?.toPlayerTitle()
-        }
+        return application.getEquipped(uuid)
     }
 
     /**
@@ -143,26 +97,7 @@ internal object TitleService {
      * @return 佩戴结果。
      */
     fun equipTitle(uuid: UUID, titleId: String): TitleEquipResult {
-        val normalizedId = normalizeTitleId(titleId)
-        val result = DatabaseGuard.execute("佩戴称号", TitleEquipResult.FAILED) {
-            playerTitleRecordMapper.transaction {
-                val selected = findById(recordId(uuid, normalizedId))
-                    ?: return@transaction TitleEquipResult.NOT_OWNED
-                if (selected.equipped) {
-                    return@transaction TitleEquipResult.ALREADY_EQUIPPED
-                }
-
-                rawUpdate {
-                    set("equipped", false)
-                    where {
-                        "uuid" eq uuid.toString()
-                    }
-                }
-                selected.equipped = true
-                update(selected)
-                TitleEquipResult.EQUIPPED
-            }.getOrThrow()
-        }
+        val result = application.equip(uuid, titleId)
 
         when (result) {
             TitleEquipResult.EQUIPPED,
@@ -179,17 +114,7 @@ internal object TitleService {
      * @return 取消佩戴结果。
      */
     fun unequipTitle(uuid: UUID): TitleEquipResult {
-        val result = DatabaseGuard.execute("取消佩戴称号", TitleEquipResult.FAILED) {
-            playerTitleRecordMapper.transaction {
-                rawUpdate {
-                    set("equipped", false)
-                    where {
-                        "uuid" eq uuid.toString()
-                    }
-                }
-                TitleEquipResult.UNEQUIPPED
-            }.getOrThrow()
-        }
+        val result = application.unequip(uuid)
 
         if (result == TitleEquipResult.UNEQUIPPED) {
             updateEquippedTitleCache(uuid, null)
@@ -206,7 +131,7 @@ internal object TitleService {
 
     @Awake(LifeCycle.ACTIVE)
     fun loadOnlinePlayerCaches() {
-        Bukkit.getOnlinePlayers().forEach(::refreshEquippedTitleCache)
+        onlinePlayers.forEach(::refreshEquippedTitleCache)
     }
 
     @Awake(LifeCycle.DISABLE)
@@ -218,7 +143,10 @@ internal object TitleService {
     @SubscribeEvent
     fun onPlayerPreLogin(event: AsyncPlayerPreLoginEvent) {
         val uuid = event.uniqueId
-        updateEquippedTitleCache(uuid, getEquippedTitle(uuid), createIfAbsent = true)
+        val title = runCatching {
+            DztAsyncExecutor.supply { getEquippedTitle(uuid) }.join()
+        }.getOrNull()
+        updateEquippedTitleCache(uuid, title, createIfAbsent = true)
     }
 
     @SubscribeEvent
@@ -238,7 +166,7 @@ internal object TitleService {
         val token = cacheTokenSequence.incrementAndGet()
         cacheLoadTokens[uuid] = token
 
-        CompletableFuture.supplyAsync {
+        DztAsyncExecutor.supply {
             getEquippedTitle(uuid)
         }.whenComplete { title, error ->
             if (error != null || cacheLoadTokens[uuid] != token) {
@@ -268,47 +196,4 @@ internal object TitleService {
         }
     }
 
-    private fun normalizeTitleId(titleId: String): String {
-        val normalized = titleId.trim().lowercase(Locale.ROOT)
-        require(normalized.isNotEmpty()) { "称号 ID 不能为空" }
-        require(normalized.length <= MAX_TITLE_ID_LENGTH) {
-            "称号 ID 长度不能超过 $MAX_TITLE_ID_LENGTH 个字符"
-        }
-        require(validTitleId.matches(normalized)) {
-            "称号 ID 只能包含小写字母、数字、点、下划线与连字符"
-        }
-        return normalized
-    }
-
-    private fun normalizeDisplayName(displayName: String): String {
-        val normalized = displayName.trim()
-        require(normalized.isNotEmpty()) { "称号显示名不能为空" }
-        require(normalized.length <= MAX_DISPLAY_NAME_LENGTH) {
-            "称号显示名长度不能超过 $MAX_DISPLAY_NAME_LENGTH 个字符"
-        }
-        require('\n' !in normalized && '\r' !in normalized) { "称号显示名不能包含换行" }
-        return normalized
-    }
-
-    private fun normalizeDescription(description: String): String {
-        val normalized = description
-            .replace("\r\n", "\n")
-            .replace('\r', '\n')
-            .trim()
-        require(normalized.length <= MAX_DESCRIPTION_LENGTH) {
-            "称号介绍长度不能超过 $MAX_DESCRIPTION_LENGTH 个字符"
-        }
-        require(normalized.none { it.isISOControl() && it != '\n' && it != '\t' }) {
-            "称号介绍包含不可用的控制字符"
-        }
-        return normalized
-    }
-
-    private fun recordId(uuid: UUID, titleId: String): String {
-        return "$uuid:$titleId"
-    }
-
-    private fun PlayerTitleRecord.toPlayerTitle(): PlayerTitle {
-        return PlayerTitle(titleId, displayName, description, acquiredAt, equipped)
-    }
 }

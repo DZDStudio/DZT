@@ -72,6 +72,9 @@ dependencies {
     taboo("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.9.0") { isTransitive = false }
     compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0") { isTransitive = false }
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
 }
 
 tasks.withType<JavaCompile> {
@@ -81,7 +84,7 @@ tasks.withType<JavaCompile> {
 tasks.withType<KotlinCompile> {
     compilerOptions {
         jvmTarget.set(JVM_25)
-        freeCompilerArgs.add("-Xjvm-default=all")
+        freeCompilerArgs.add("-jvm-default=no-compatibility")
     }
 }
 
@@ -93,6 +96,11 @@ java {
 val javaToolchainService = project.extensions.getByType(JavaToolchainService::class.java)
 val java25Launcher = javaToolchainService.launcherFor {
     languageVersion.set(JavaLanguageVersion.of(25))
+}
+
+tasks.test {
+    useJUnitPlatform()
+    javaLauncher.set(java25Launcher)
 }
 
 tasks.withType<RunServer>().configureEach {
