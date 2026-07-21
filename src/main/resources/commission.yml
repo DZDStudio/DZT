@@ -2,13 +2,15 @@
 # type 仅支持 submit_item（上交物品）或 kill_entity（击杀实体，minecraft:player 表示击杀玩家）。
 # target 与 java-icon 使用原版 minecraft: 命名空间 ID；bedrock-icon 使用基岩版 textures/ 材质路径。
 # 每名玩家每日固定从 simple、normal、hard 三个池分别随机抽取 2、2、1 个委托。
+# 奖励预算按池内等概率抽取计算：simple 均值 512、normal 均值 1536、常规 hard 均值 6144，
+# 因而每日简单委托期望 1024 DDB，常规五项全清期望 10240 DDB；三个超难首领额外提高奖励。
 pools:
   simple:
     stone_stockpile:
       type: submit_item
       target: minecraft:cobblestone
       amount: 32
-      reward: 280
+      reward: 448
       name: "石材补给"
       description:
         - "向后勤仓库上交 32 个原石。"
@@ -19,7 +21,7 @@ pools:
       type: submit_item
       target: minecraft:dirt
       amount: 48
-      reward: 420
+      reward: 512
       name: "土方材料"
       description:
         - "向工地上交 48 个泥土。"
@@ -30,7 +32,7 @@ pools:
       type: submit_item
       target: minecraft:sand
       amount: 32
-      reward: 280
+      reward: 512
       name: "海岸细沙"
       description:
         - "向玻璃作坊上交 32 个沙子。"
@@ -41,7 +43,7 @@ pools:
       type: submit_item
       target: minecraft:gravel
       amount: 16
-      reward: 280
+      reward: 480
       name: "道路垫层"
       description:
         - "向道路施工队上交 16 个砂砾。"
@@ -52,7 +54,7 @@ pools:
       type: submit_item
       target: minecraft:oak_log
       amount: 16
-      reward: 560
+      reward: 576
       name: "橡木木料"
       description:
         - "向木工坊上交 16 个橡木原木。"
@@ -63,7 +65,7 @@ pools:
       type: submit_item
       target: minecraft:coal
       amount: 8
-      reward: 280
+      reward: 576
       name: "锻炉燃料"
       description:
         - "向锻炉上交 8 个煤炭。"
@@ -74,7 +76,7 @@ pools:
       type: submit_item
       target: minecraft:redstone
       amount: 8
-      reward: 280
+      reward: 544
       name: "红石元件"
       description:
         - "向技术组上交 8 个红石粉。"
@@ -85,7 +87,7 @@ pools:
       type: submit_item
       target: minecraft:bread
       amount: 8
-      reward: 180
+      reward: 448
       name: "野外口粮"
       description:
         - "向巡逻队上交 8 个面包。"
@@ -96,7 +98,7 @@ pools:
       type: submit_item
       target: minecraft:baked_potato
       amount: 8
-      reward: 180
+      reward: 448
       name: "烤薯口粮"
       description:
         - "向值守人员上交 8 个烤马铃薯。"
@@ -107,7 +109,7 @@ pools:
       type: submit_item
       target: minecraft:cooked_beef
       amount: 8
-      reward: 250
+      reward: 544
       name: "牛排补给"
       description:
         - "向前线营地上交 8 个烤牛排。"
@@ -118,7 +120,7 @@ pools:
       type: submit_item
       target: minecraft:feather
       amount: 16
-      reward: 150
+      reward: 512
       name: "制箭羽毛"
       description:
         - "向制箭台上交 16 个羽毛。"
@@ -129,7 +131,7 @@ pools:
       type: submit_item
       target: minecraft:leather
       amount: 8
-      reward: 180
+      reward: 576
       name: "皮革收集"
       description:
         - "向护甲匠上交 8 个皮革。"
@@ -140,7 +142,7 @@ pools:
       type: submit_item
       target: minecraft:sugar_cane
       amount: 24
-      reward: 180
+      reward: 448
       name: "纸张原料"
       description:
         - "向文书室上交 24 个甘蔗。"
@@ -151,7 +153,7 @@ pools:
       type: submit_item
       target: minecraft:wheat
       amount: 24
-      reward: 180
+      reward: 448
       name: "麦田收获"
       description:
         - "向粮仓上交 24 个小麦。"
@@ -162,7 +164,7 @@ pools:
       type: kill_entity
       target: minecraft:zombie
       amount: 8
-      reward: 180
+      reward: 480
       name: "清理亡灵"
       description:
         - "击杀 8 只僵尸，保障道路安全。"
@@ -173,7 +175,7 @@ pools:
       type: kill_entity
       target: minecraft:skeleton
       amount: 6
-      reward: 180
+      reward: 512
       name: "驱散骷髅"
       description:
         - "击杀 6 只骷髅，减少远程威胁。"
@@ -184,7 +186,7 @@ pools:
       type: kill_entity
       target: minecraft:spider
       amount: 6
-      reward: 160
+      reward: 480
       name: "蛛网巡查"
       description:
         - "击杀 6 只蜘蛛，清理外围巢穴。"
@@ -195,7 +197,7 @@ pools:
       type: kill_entity
       target: minecraft:creeper
       amount: 4
-      reward: 200
+      reward: 544
       name: "爆破隐患"
       description:
         - "击杀 4 只苦力怕，阻止设施受损。"
@@ -206,7 +208,7 @@ pools:
       type: kill_entity
       target: minecraft:drowned
       amount: 6
-      reward: 170
+      reward: 544
       name: "河道巡防"
       description:
         - "击杀 6 只溺尸，保障河道通行。"
@@ -217,7 +219,7 @@ pools:
       type: kill_entity
       target: minecraft:husk
       amount: 6
-      reward: 170
+      reward: 480
       name: "沙漠清剿"
       description:
         - "击杀 6 只尸壳，清理沙漠商路。"
@@ -228,7 +230,7 @@ pools:
       type: kill_entity
       target: minecraft:slime
       amount: 8
-      reward: 160
+      reward: 512
       name: "沼泽弹跳者"
       description:
         - "击杀 8 只史莱姆，清理沼泽外围。"
@@ -239,7 +241,7 @@ pools:
       type: kill_entity
       target: minecraft:phantom
       amount: 4
-      reward: 220
+      reward: 576
       name: "夜空驱逐"
       description:
         - "击杀 4 只幻翼，恢复夜间秩序。"
@@ -250,7 +252,7 @@ pools:
       type: kill_entity
       target: minecraft:pillager
       amount: 4
-      reward: 220
+      reward: 576
       name: "弩手警报"
       description:
         - "击杀 4 名掠夺者，保护村庄周边。"
@@ -263,7 +265,7 @@ pools:
       type: submit_item
       target: minecraft:iron_ingot
       amount: 8
-      reward: 1200
+      reward: 1728
       name: "铁锭入库"
       description:
         - "向装备库上交 8 个铁锭。"
@@ -274,7 +276,7 @@ pools:
       type: submit_item
       target: minecraft:copper_ingot
       amount: 16
-      reward: 1200
+      reward: 1600
       name: "铜材补货"
       description:
         - "向技术组上交 16 个铜锭。"
@@ -285,7 +287,7 @@ pools:
       type: submit_item
       target: minecraft:gold_ingot
       amount: 4
-      reward: 880
+      reward: 1728
       name: "贵金属保管"
       description:
         - "向金库上交 4 个金锭。"
@@ -296,7 +298,7 @@ pools:
       type: submit_item
       target: minecraft:charcoal
       amount: 16
-      reward: 520
+      reward: 1216
       name: "木炭燃料"
       description:
         - "向冶炼站上交 16 个木炭。"
@@ -307,7 +309,7 @@ pools:
       type: submit_item
       target: minecraft:glass
       amount: 16
-      reward: 420
+      reward: 1152
       name: "玻璃工坊订单"
       description:
         - "向工坊上交 16 个玻璃。"
@@ -318,7 +320,7 @@ pools:
       type: submit_item
       target: minecraft:torch
       amount: 32
-      reward: 380
+      reward: 1152
       name: "照明补给"
       description:
         - "向矿道管理员上交 32 个火把。"
@@ -329,7 +331,7 @@ pools:
       type: submit_item
       target: minecraft:arrow
       amount: 32
-      reward: 440
+      reward: 1344
       name: "箭矢补充"
       description:
         - "向守卫上交 32 支箭。"
@@ -340,7 +342,7 @@ pools:
       type: submit_item
       target: minecraft:book
       amount: 8
-      reward: 520
+      reward: 1472
       name: "图书馆征集"
       description:
         - "向图书馆上交 8 本书。"
@@ -351,7 +353,7 @@ pools:
       type: submit_item
       target: minecraft:lapis_lazuli
       amount: 12
-      reward: 560
+      reward: 1472
       name: "附魔青金石"
       description:
         - "向附魔室上交 12 个青金石。"
@@ -362,7 +364,7 @@ pools:
       type: submit_item
       target: minecraft:quartz
       amount: 16
-      reward: 760
+      reward: 1600
       name: "下界石英"
       description:
         - "向建筑队上交 16 个下界石英。"
@@ -373,7 +375,7 @@ pools:
       type: submit_item
       target: minecraft:rabbit_hide
       amount: 16
-      reward: 420
+      reward: 1728
       name: "兔皮收购"
       description:
         - "向皮革匠上交 16 个兔子皮。"
@@ -384,7 +386,7 @@ pools:
       type: submit_item
       target: minecraft:honey_bottle
       amount: 8
-      reward: 560
+      reward: 1600
       name: "蜂蜜药剂"
       description:
         - "向医务室上交 8 瓶蜂蜜瓶。"
@@ -395,7 +397,7 @@ pools:
       type: kill_entity
       target: minecraft:enderman
       amount: 6
-      reward: 680
+      reward: 1600
       name: "末影追猎"
       description:
         - "击杀 6 只末影人，清理传送干扰。"
@@ -406,7 +408,7 @@ pools:
       type: kill_entity
       target: minecraft:witch
       amount: 5
-      reward: 620
+      reward: 1600
       name: "女巫药剂"
       description:
         - "击杀 5 名女巫，解除药水威胁。"
@@ -417,7 +419,7 @@ pools:
       type: kill_entity
       target: minecraft:cave_spider
       amount: 8
-      reward: 560
+      reward: 1344
       name: "矿井除蛛"
       description:
         - "击杀 8 只洞穴蜘蛛，清理废弃矿井。"
@@ -428,7 +430,7 @@ pools:
       type: kill_entity
       target: minecraft:silverfish
       amount: 12
-      reward: 520
+      reward: 1344
       name: "虫害清除"
       description:
         - "击杀 12 只蠹虫，排除遗迹隐患。"
@@ -439,7 +441,7 @@ pools:
       type: kill_entity
       target: minecraft:guardian
       amount: 5
-      reward: 720
+      reward: 1728
       name: "海底神殿巡防"
       description:
         - "击杀 5 只守卫者，减轻海底航路压力。"
@@ -450,7 +452,7 @@ pools:
       type: kill_entity
       target: minecraft:blaze
       amount: 6
-      reward: 760
+      reward: 1600
       name: "烈焰清剿"
       description:
         - "击杀 6 只烈焰人，削减下界堡垒威胁。"
@@ -461,7 +463,7 @@ pools:
       type: kill_entity
       target: minecraft:piglin_brute
       amount: 3
-      reward: 780
+      reward: 1984
       name: "堡垒重装兵"
       description:
         - "击杀 3 名猪灵蛮兵，压制堡垒防线。"
@@ -472,7 +474,7 @@ pools:
       type: kill_entity
       target: minecraft:hoglin
       amount: 5
-      reward: 680
+      reward: 1408
       name: "疣猪兽驱离"
       description:
         - "击杀 5 只疣猪兽，保护下界补给线。"
@@ -483,7 +485,7 @@ pools:
       type: kill_entity
       target: minecraft:vex
       amount: 6
-      reward: 660
+      reward: 1984
       name: "恼鬼净化"
       description:
         - "击杀 6 只恼鬼，协助村庄恢复安全。"
@@ -494,7 +496,7 @@ pools:
       type: kill_entity
       target: minecraft:player
       amount: 1
-      reward: 600
+      reward: 1216
       name: "切磋证明"
       description:
         - "击杀 1 名玩家。"
@@ -505,7 +507,7 @@ pools:
       type: kill_entity
       target: minecraft:player
       amount: 2
-      reward: 1000
+      reward: 1856
       name: "悬赏追击"
       description:
         - "击杀 2 名玩家。"
@@ -516,7 +518,7 @@ pools:
       type: kill_entity
       target: minecraft:drowned
       amount: 12
-      reward: 580
+      reward: 1408
       name: "深水肃清"
       description:
         - "击杀 12 只溺尸，确保水路补给安全。"
@@ -529,7 +531,7 @@ pools:
       type: submit_item
       target: minecraft:iron_ingot
       amount: 24
-      reward: 3600
+      reward: 6400
       name: "装备库大单"
       description:
         - "向装备库上交 24 个铁锭。"
@@ -540,7 +542,7 @@ pools:
       type: submit_item
       target: minecraft:copper_ingot
       amount: 48
-      reward: 3600
+      reward: 5632
       name: "技术储备大单"
       description:
         - "向技术组上交 48 个铜锭。"
@@ -551,7 +553,7 @@ pools:
       type: submit_item
       target: minecraft:gold_ingot
       amount: 12
-      reward: 2640
+      reward: 6400
       name: "金库储备"
       description:
         - "向金库上交 12 个金锭。"
@@ -562,7 +564,7 @@ pools:
       type: submit_item
       target: minecraft:diamond
       amount: 6
-      reward: 2880
+      reward: 7680
       name: "钻石委托"
       description:
         - "向高级工坊上交 6 个钻石。"
@@ -573,7 +575,7 @@ pools:
       type: submit_item
       target: minecraft:emerald
       amount: 16
-      reward: 2400
+      reward: 5632
       name: "绿宝石调度"
       description:
         - "向贸易所上交 16 个绿宝石。"
@@ -584,7 +586,7 @@ pools:
       type: submit_item
       target: minecraft:obsidian
       amount: 12
-      reward: 1800
+      reward: 5120
       name: "黑曜石屏障"
       description:
         - "向防御工事上交 12 个黑曜石。"
@@ -595,7 +597,7 @@ pools:
       type: submit_item
       target: minecraft:ender_pearl
       amount: 12
-      reward: 1680
+      reward: 5120
       name: "末影珍珠储备"
       description:
         - "向探索队上交 12 个末影珍珠。"
@@ -606,7 +608,7 @@ pools:
       type: submit_item
       target: minecraft:blaze_rod
       amount: 12
-      reward: 1800
+      reward: 5376
       name: "烈焰棒征集"
       description:
         - "向炼药室上交 12 根烈焰棒。"
@@ -617,7 +619,7 @@ pools:
       type: submit_item
       target: minecraft:ghast_tear
       amount: 8
-      reward: 2240
+      reward: 6912
       name: "恶魂之泪"
       description:
         - "向炼药室上交 8 个恶魂之泪。"
@@ -628,7 +630,7 @@ pools:
       type: submit_item
       target: minecraft:nether_wart
       amount: 32
-      reward: 1600
+      reward: 4608
       name: "地狱疣药材"
       description:
         - "向炼药室上交 32 个地狱疣。"
@@ -639,7 +641,7 @@ pools:
       type: submit_item
       target: minecraft:shulker_shell
       amount: 4
-      reward: 2400
+      reward: 6400
       name: "潜影壳收购"
       description:
         - "向仓储所上交 4 个潜影壳。"
@@ -650,7 +652,7 @@ pools:
       type: submit_item
       target: minecraft:netherite_scrap
       amount: 4
-      reward: 3200
+      reward: 8704
       name: "远古残骸精炼"
       description:
         - "向高级锻造台上交 4 个下界合金碎片。"
@@ -661,7 +663,7 @@ pools:
       type: kill_entity
       target: minecraft:wither_skeleton
       amount: 10
-      reward: 2200
+      reward: 5888
       name: "凋灵骷髅压制"
       description:
         - "击杀 10 只凋灵骷髅，削弱堡垒威胁。"
@@ -672,7 +674,7 @@ pools:
       type: kill_entity
       target: minecraft:magma_cube
       amount: 10
-      reward: 1800
+      reward: 4608
       name: "岩浆立方体肃清"
       description:
         - "击杀 10 只岩浆怪，清理下界道路。"
@@ -683,7 +685,7 @@ pools:
       type: kill_entity
       target: minecraft:evoker
       amount: 4
-      reward: 2600
+      reward: 6656
       name: "唤魔者清剿"
       description:
         - "击杀 4 名唤魔者，阻止灾厄魔法蔓延。"
@@ -694,7 +696,7 @@ pools:
       type: kill_entity
       target: minecraft:ravager
       amount: 3
-      reward: 2400
+      reward: 6400
       name: "劫掠兽讨伐"
       description:
         - "击杀 3 只劫掠兽，守住村庄防线。"
@@ -705,7 +707,7 @@ pools:
       type: kill_entity
       target: minecraft:elder_guardian
       amount: 2
-      reward: 3000
+      reward: 8704
       name: "远古守卫者"
       description:
         - "击杀 2 只远古守卫者，解除神殿封锁。"
@@ -716,7 +718,7 @@ pools:
       type: kill_entity
       target: minecraft:warden
       amount: 1
-      reward: 4200
+      reward: 10240
       name: "幽匿深处"
       description:
         - "击杀 1 只监守者，排除深暗区域威胁。"
@@ -727,7 +729,7 @@ pools:
       type: kill_entity
       target: minecraft:ender_dragon
       amount: 1
-      reward: 6000
+      reward: 16384
       name: "末影龙讨伐"
       description:
         - "击杀 1 条末影龙，完成末地远征目标。"
@@ -738,7 +740,7 @@ pools:
       type: kill_entity
       target: minecraft:wither
       amount: 1
-      reward: 6500
+      reward: 14336
       name: "凋灵讨伐"
       description:
         - "击杀 1 只凋灵，阻止大规模破坏。"
@@ -749,7 +751,7 @@ pools:
       type: kill_entity
       target: minecraft:player
       amount: 4
-      reward: 2800
+      reward: 5376
       name: "竞技场冠军"
       description:
         - "击杀 4 名玩家。"
@@ -760,7 +762,7 @@ pools:
       type: kill_entity
       target: minecraft:player
       amount: 6
-      reward: 4000
+      reward: 6912
       name: "前线战功"
       description:
         - "击杀 6 名玩家。"
@@ -771,7 +773,7 @@ pools:
       type: kill_entity
       target: minecraft:enderman
       amount: 20
-      reward: 2200
+      reward: 5120
       name: "末影远征"
       description:
         - "击杀 20 只末影人，保障远征队采集路线。"
@@ -782,7 +784,7 @@ pools:
       type: kill_entity
       target: minecraft:blaze
       amount: 18
-      reward: 2300
+      reward: 5376
       name: "烈焰堡垒远征"
       description:
         - "击杀 18 只烈焰人，清扫堡垒深处。"

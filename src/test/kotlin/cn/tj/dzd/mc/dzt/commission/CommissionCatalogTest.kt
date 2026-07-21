@@ -30,6 +30,48 @@ class CommissionCatalogTest {
     }
 
     @Test
+    fun `packaged catalog reward budget matches daily income targets`() {
+        val rewards = packagedRewards()
+        val simplePool = rewards.getValue(CommissionDifficulty.SIMPLE).values.toList()
+        val normalPool = rewards.getValue(CommissionDifficulty.NORMAL).values.toList()
+        val regularHardPool = rewards.getValue(CommissionDifficulty.HARD)
+            .filterKeys { it !in ULTRA_HARD_COMMISSION_IDS }
+            .values
+            .toList()
+        val simpleMean = meanReward(simplePool)
+        val normalMean = meanReward(normalPool)
+        val regularHardMean = meanReward(regularHardPool)
+
+        assertAmount(BigDecimal("512"), simpleMean, "简单委托均值")
+        assertAmount(BigDecimal("1536"), normalMean, "普通委托均值")
+        assertAmount(BigDecimal("6144"), regularHardMean, "常规困难委托均值")
+
+        val simpleDailyReward = simpleMean.multiply(BigDecimal.valueOf(CommissionDifficulty.SIMPLE.dailyCount.toLong()))
+        val normalDailyReward = normalMean.multiply(BigDecimal.valueOf(CommissionDifficulty.NORMAL.dailyCount.toLong()))
+        val regularAllDailyReward = simpleDailyReward.add(normalDailyReward).add(regularHardMean)
+        assertAmount(BigDecimal("1024"), simpleDailyReward, "每日两项简单委托期望奖励")
+        assertAmount(BigDecimal("10240"), regularAllDailyReward, "每日常规委托全清期望奖励")
+
+        val simplePairRewards = simplePool.indices.flatMap { left ->
+            (left + 1 until simplePool.size).map { right ->
+                simplePool[left].add(simplePool[right])
+            }
+        }
+        assertTrue(
+            simplePairRewards.all { it >= BigDecimal("896") && it <= BigDecimal("1152") },
+            "任意两项简单委托的总奖励都应维持在 1024 DDB 附近。",
+        )
+
+        val hardRewards = rewards.getValue(CommissionDifficulty.HARD)
+        assertTrue(ULTRA_HARD_COMMISSION_IDS.all { hardRewards.getValue(it) > regularHardMean })
+        val dragonReward = hardRewards.getValue("ender_dragon_hunt")
+        assertTrue(
+            dragonReward >= regularHardMean.multiply(BigDecimal("2")),
+            "末影龙委托包含复活与击杀成本，奖励至少应为常规困难委托均值的两倍。",
+        )
+    }
+
+    @Test
     fun `daily selection always uses configured difficulty quotas without duplicates`() {
         val catalog = sampleCatalog()
         val selection = DailyCommissionSelector.select(
@@ -103,5 +145,50 @@ class CommissionCatalogTest {
                 }
             }
         )
+    }
+
+    private fun packagedRewards(): Map<CommissionDifficulty, Map<String, BigDecimal>> {
+        val content = requireNotNull(
+            CommissionCatalogs::class.java.classLoader.getResourceAsStream("commission.yml")
+        ).bufferedReader().use { it.readText() }
+        val rewards = CommissionDifficulty.entries.associateWith { linkedMapOf<String, BigDecimal>() }
+        var currentDifficulty: CommissionDifficulty? = null
+        var currentCommissionId: String? = null
+
+        content.lineSequence().forEach { line ->
+            val difficulty = CommissionDifficulty.entries.firstOrNull { line == "  ${it.configKey}:" }
+            if (difficulty != null) {
+                currentDifficulty = difficulty
+                currentCommissionId = null
+                return@forEach
+            }
+
+            val taskHeader = TASK_HEADER_PATTERN.matchEntire(line)
+            if (currentDifficulty != null && taskHeader != null) {
+                currentCommissionId = taskHeader.groupValues[1]
+                return@forEach
+            }
+
+            if (line.startsWith("      reward:")) {
+                val difficultyKey = requireNotNull(currentDifficulty) { "reward 字段必须位于难度池内。" }
+                val commissionId = requireNotNull(currentCommissionId) { "reward 字段必须位于委托内。" }
+                rewards.getValue(difficultyKey)[commissionId] = BigDecimal(line.substringAfter(':').trim())
+            }
+        }
+        return rewards
+    }
+
+    private fun meanReward(rewards: List<BigDecimal>): BigDecimal {
+        val total = rewards.fold(BigDecimal.ZERO, BigDecimal::add)
+        return total.divide(BigDecimal.valueOf(rewards.size.toLong()))
+    }
+
+    private fun assertAmount(expected: BigDecimal, actual: BigDecimal, description: String) {
+        assertEquals(0, expected.compareTo(actual), "$description 应为 $expected DDB，实际为 $actual DDB。")
+    }
+
+    private companion object {
+        val TASK_HEADER_PATTERN = Regex("^    ([a-z0-9][a-z0-9_-]{0,63}):$")
+        val ULTRA_HARD_COMMISSION_IDS = setOf("warden_hunt", "ender_dragon_hunt", "wither_hunt")
     }
 }
