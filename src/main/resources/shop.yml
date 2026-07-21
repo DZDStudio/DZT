@@ -8,32 +8,44 @@ categories:
         name: "煤炭"
         material: "minecraft:coal"
         bedrock-icon: "textures/items/coal.png"
-        price: 40
+        price: 20
         daily-limit: 128
       iron_ingot:
         name: "铁锭"
         material: "minecraft:iron_ingot"
         bedrock-icon: "textures/items/iron_ingot.png"
-        price: 160
+        price: 80
         daily-limit: 64
       copper_ingot:
         name: "铜锭"
         material: "minecraft:copper_ingot"
         bedrock-icon: "textures/items/copper_ingot.png"
-        price: 80
+        price: 40
         daily-limit: 128
       gold_ingot:
         name: "金锭"
         material: "minecraft:gold_ingot"
         bedrock-icon: "textures/items/gold_ingot.png"
-        price: 240
+        price: 120
         daily-limit: 32
       redstone:
         name: "红石粉"
         material: "minecraft:redstone"
         bedrock-icon: "textures/items/redstone_dust.png"
-        price: 40
+        price: 20
         daily-limit: 32
+      diamond:
+        name: "钻石"
+        material: "minecraft:diamond"
+        bedrock-icon: "textures/items/diamond.png"
+        price: 512
+        daily-limit: 32
+      quartz:
+        name: "下界石英"
+        material: "minecraft:quartz"
+        bedrock-icon: "textures/items/quartz.png"
+        price: 240
+        daily-limit: 64
   wood:
     name: "木材"
     java-icon: "minecraft:oak_log"
@@ -43,8 +55,56 @@ categories:
         name: "橡木原木"
         material: "minecraft:oak_log"
         bedrock-icon: "textures/blocks/log_oak.png"
-        price: 40
+        price: 20
         daily-limit: 128
+      birch_log:
+        name: "白桦原木"
+        material: "minecraft:birch_log"
+        bedrock-icon: "textures/blocks/log_birch.png"
+        price: 20
+        daily-limit: 128
+      spruce_log:
+        name: "云杉原木"
+        material: "minecraft:spruce_log"
+        bedrock-icon: "textures/blocks/log_spruce.png"
+        price: 24
+        daily-limit: 128
+      acacia_log:
+        name: "金合欢原木"
+        material: "minecraft:acacia_log"
+        bedrock-icon: "textures/blocks/log_acacia.png"
+        price: 28
+        daily-limit: 96
+      dark_oak_log:
+        name: "深色橡木原木"
+        material: "minecraft:dark_oak_log"
+        bedrock-icon: "textures/blocks/log_big_oak.png"
+        price: 28
+        daily-limit: 96
+      jungle_log:
+        name: "丛林原木"
+        material: "minecraft:jungle_log"
+        bedrock-icon: "textures/blocks/log_jungle.png"
+        price: 32
+        daily-limit: 96
+      mangrove_log:
+        name: "红树原木"
+        material: "minecraft:mangrove_log"
+        bedrock-icon: "textures/blocks/mangrove_log_side.png"
+        price: 40
+        daily-limit: 64
+      cherry_log:
+        name: "樱花原木"
+        material: "minecraft:cherry_log"
+        bedrock-icon: "textures/blocks/cherry_log_side.png"
+        price: 40
+        daily-limit: 64
+      pale_oak_log:
+        name: "苍白橡木原木"
+        material: "minecraft:pale_oak_log"
+        bedrock-icon: "textures/blocks/pale_oak_log_side.png"
+        price: 48
+        daily-limit: 64
   blocks:
     name: "基础方块"
     java-icon: "minecraft:cobblestone"
@@ -54,25 +114,25 @@ categories:
         name: "原石"
         material: "minecraft:cobblestone"
         bedrock-icon: "textures/blocks/cobblestone.png"
-        price: 10
+        price: 5
         daily-limit: 256
       dirt:
         name: "泥土"
         material: "minecraft:dirt"
         bedrock-icon: "textures/blocks/dirt.png"
-        price: 10
+        price: 5
         daily-limit: 256
       sand:
         name: "沙子"
         material: "minecraft:sand"
         bedrock-icon: "textures/blocks/sand.png"
-        price: 10
+        price: 5
         daily-limit: 128
       gravel:
         name: "砂砾"
         material: "minecraft:gravel"
         bedrock-icon: "textures/blocks/gravel.png"
-        price: 20
+        price: 15
         daily-limit: 64
   food:
     name: "食物"
@@ -83,17 +143,23 @@ categories:
         name: "烤牛排"
         material: "minecraft:cooked_beef"
         bedrock-icon: "textures/items/beef_cooked.png"
-        price: 35
+        price: 30
         daily-limit: 64
       bread:
         name: "面包"
         material: "minecraft:bread"
         bedrock-icon: "textures/items/bread.png"
-        price: 25
+        price: 20
         daily-limit: 64
       baked_potato:
         name: "烤马铃薯"
         material: "minecraft:baked_potato"
         bedrock-icon: "textures/items/potato_baked.png"
-        price: 25
+        price: 20
         daily-limit: 64
+      enchanted_golden_apple:
+        name: "附魔金苹果"
+        material: "minecraft:enchanted_golden_apple"
+        bedrock-icon: "textures/items/apple_golden.png"
+        price: 4096
+        daily-limit: 2
