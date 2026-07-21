@@ -59,15 +59,18 @@ fun Player.foliaLocation(): CompletableFuture<Location?> {
 }
 
 /**
- * 读取玩家当前有效复活点快照。
+ * 读取玩家当前配置的复活点快照。
  *
- * Paper 1.20.4 起复活点可能来自床或重生锚；该接口会在玩家实体线程读取，避免 Folia 线程问题。
+ * Paper 1.20.4 起复活点可能来自床或重生锚。这里必须关闭位置验证，因为无参
+ * `getRespawnLocation()` 会同步加载复活点区块；当玩家与复活点分属不同 Folia 区域时，
+ * 该同步加载会违反区域线程边界。调用方应将快照交给 [foliaTeleport]，由
+ * `teleportAsync` 异步加载目标区块。
  *
- * @return 复活点副本；没有有效复活点、玩家离线或实体调度器失效时完成为 null。
+ * @return 已配置复活点的副本；未配置复活点、目标世界不存在、玩家离线或实体调度器失效时完成为 null。
  */
 fun Player.foliaRespawnLocation(): CompletableFuture<Location?> {
     return foliaCall(null) {
-        respawnLocation?.clone()
+        getRespawnLocation(false)?.clone()
     }
 }
 

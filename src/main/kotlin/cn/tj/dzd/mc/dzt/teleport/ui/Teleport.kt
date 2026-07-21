@@ -97,7 +97,7 @@ object Teleport {
 
             set('S', buildItem(XMaterial.RED_BED) {
                 name = "§l§6回床"
-                lore += "§7回到当前有效复活点"
+                lore += "§7回到当前配置的复活点"
             }) {
                 Bed.teleportBedUI(player)
             }
