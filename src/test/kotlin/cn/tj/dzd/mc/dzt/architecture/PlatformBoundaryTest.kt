@@ -73,6 +73,14 @@ class PlatformBoundaryTest {
         assertFalse("onlinePlayersSnapshot.map { pl -> pl.name }" in reporting)
     }
 
+    @Test
+    fun `respawn snapshot never synchronously loads a remote Folia region`() {
+        val folia = source("cn/tj/dzd/mc/dzt/util/Folia.kt")
+
+        assertTrue("getRespawnLocation(false)?.clone()" in folia)
+        assertFalse("respawnLocation?.clone()" in folia)
+    }
+
     private fun sourceFiles(): List<Path> {
         return Files.walk(SOURCE_ROOT).use { paths ->
             paths.filter { it.isRegularFile() && it.toString().endsWith(".kt") }.toList()
