@@ -158,6 +158,47 @@ object ServiceEconomy {
     }
 
     /**
+     * 向玩家发放已由 DZT 业务确认的奖励。
+     *
+     * 此接口用于委托、活动等明确授权的正向奖励；它会与同一玩家的转账、扣款和退款共用账户锁。
+     * 退款补偿请继续使用 [refund]，不要将两者混用。
+     *
+     * @param player 获得奖励的玩家 UUID。
+     * @param amount 奖励金额，必须大于 0 且符合默认货币精度。
+     * @return 异步奖励入账结果；底层 ServiceIO Future 异常时该 Future 异常完成。
+     */
+    fun reward(player: UUID, amount: BigDecimal): CompletableFuture<EconomyRewardResult> {
+        if (!isValidPositiveAmount(amount)) {
+            return CompletableFuture.completedFuture(
+                EconomyRewardResult(EconomyRewardStatus.INVALID_AMOUNT, amount)
+            )
+        }
+
+        return try {
+            val controller = controller() ?: return CompletableFuture.completedFuture(
+                EconomyRewardResult(EconomyRewardStatus.SERVICE_UNAVAILABLE, amount)
+            )
+            val currency = controller.currencyController.defaultCurrency
+            if (!supportsFractionalDigits(amount, currency)) {
+                return CompletableFuture.completedFuture(
+                    EconomyRewardResult(EconomyRewardStatus.INVALID_PRECISION, amount)
+                )
+            }
+            controller.resolveAccount(player).thenCompose { account ->
+                DztAsyncExecutor.supply {
+                    transferEngine.deposit(
+                        player = player,
+                        amount = amount,
+                        account = account.orElse(null)?.let { ServiceIoEconomyAccount(it, currency) },
+                    ).toRewardResult()
+                }
+            }
+        } catch (error: Throwable) {
+            CompletableFuture.failedFuture(error)
+        }
+    }
+
+    /**
      * 向玩家的 ServiceIO 默认货币账户退还已扣除的金额。
      *
      * 该接口仅用于无法完成后续业务操作时的补偿。例如商店已经扣款但物品发放失败时，
@@ -329,6 +370,34 @@ enum class EconomyRefundStatus {
 }
 
 /**
+ * DZT 正向奖励入账结果。
+ *
+ * @property status 本次奖励的处理状态。
+ * @property amount 本次请求金额。
+ * @property balance 入账后的余额；基础设施未提供时为 null。
+ */
+data class EconomyRewardResult(
+    val status: EconomyRewardStatus,
+    val amount: BigDecimal,
+    val balance: BigDecimal? = null,
+) {
+    /** 奖励是否已成功入账。 */
+    val successful: Boolean
+        get() = status == EconomyRewardStatus.SUCCESS
+}
+
+/** 调用 [ServiceEconomy.reward] 时可能产生的状态。 */
+enum class EconomyRewardStatus {
+    SUCCESS,
+    SERVICE_UNAVAILABLE,
+    INVALID_AMOUNT,
+    INVALID_PRECISION,
+    ACCOUNT_UNAVAILABLE,
+    CURRENCY_NOT_SUPPORTED,
+    REWARD_FAILED,
+}
+
+/**
  * DZT 调用 ServiceIO 转账时可能产生的状态。
  */
 enum class EconomyTransferStatus {
@@ -371,4 +440,18 @@ private fun EconomyAccountMutationResult.toRefundResult(): EconomyRefundResult {
         -> EconomyRefundStatus.REFUND_FAILED
     }
     return EconomyRefundResult(status, amount, balance)
+}
+
+private fun EconomyAccountMutationResult.toRewardResult(): EconomyRewardResult {
+    val status = when (status) {
+        EconomyAccountMutationStatus.SUCCESS -> EconomyRewardStatus.SUCCESS
+        EconomyAccountMutationStatus.INVALID_AMOUNT -> EconomyRewardStatus.INVALID_AMOUNT
+        EconomyAccountMutationStatus.ACCOUNT_UNAVAILABLE -> EconomyRewardStatus.ACCOUNT_UNAVAILABLE
+        EconomyAccountMutationStatus.CURRENCY_NOT_SUPPORTED -> EconomyRewardStatus.CURRENCY_NOT_SUPPORTED
+        EconomyAccountMutationStatus.INSUFFICIENT_FUNDS,
+        EconomyAccountMutationStatus.WITHDRAWAL_FAILED,
+        EconomyAccountMutationStatus.DEPOSIT_FAILED,
+        -> EconomyRewardStatus.REWARD_FAILED
+    }
+    return EconomyRewardResult(status, amount, balance)
 }

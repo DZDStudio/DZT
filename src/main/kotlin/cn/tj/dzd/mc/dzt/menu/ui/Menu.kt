@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.menu.ui
 
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
+import cn.tj.dzd.mc.dzt.commission.ui.CommissionUI
 import cn.tj.dzd.mc.dzt.economy.ui.TransferUI
 import cn.tj.dzd.mc.dzt.shop.ui.ShopUI
 import cn.tj.dzd.mc.dzt.title.ui.TitleUI
@@ -88,7 +89,7 @@ object Menu {
                 "####I####",
                 "#       #",
                 "# T E C #",
-                "#  H S  #",
+                "# H Q S #",
                 "#       #",
                 "#########"
             )
@@ -129,6 +130,13 @@ object Menu {
                 ShopUI.open(pl)
             }
 
+            set('Q', buildItem(XMaterial.WRITABLE_BOOK) {
+                name = "每日委托"
+                lore += "完成委托领取弟弟币"
+            }) {
+                CommissionUI.open(pl)
+            }
+
             set('S', buildItem(XMaterial.WITHER_SKELETON_SKULL) {
                 name = "§l§c自杀"
                 lore += "§7结束当前生命"
@@ -151,6 +159,7 @@ object Menu {
             .button("转账", FormImage.Type.PATH, "textures/items/emerald.png")
             .button("称号", FormImage.Type.PATH, "textures/items/name_tag.png")
             .button("商店", FormImage.Type.PATH, "textures/blocks/chest_front.png")
+            .button("每日委托", FormImage.Type.PATH, "textures/items/book_normal.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
             .validResultHandler { res ->
@@ -161,8 +170,9 @@ object Menu {
                         1 -> TransferUI.openTransferUI(this)
                         2 -> TitleUI.open(this)
                         3 -> ShopUI.open(this)
-                        4 -> foliaPerformCommand("geyser advancements")
-                        5 -> openBedrockSuicideConfirmation(this)
+                        4 -> CommissionUI.open(this)
+                        5 -> foliaPerformCommand("geyser advancements")
+                        6 -> openBedrockSuicideConfirmation(this)
                     }
                 }
             }

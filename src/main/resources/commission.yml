@@ -1,0 +1,791 @@
+# 此文件只从插件 jar 的资源中读取，不会释放到插件数据目录，也不支持运行时重载。
+# type 仅支持 submit_item（上交物品）或 kill_entity（击杀实体，minecraft:player 表示击杀玩家）。
+# target 与 java-icon 使用原版 minecraft: 命名空间 ID；bedrock-icon 使用基岩版 textures/ 材质路径。
+# 每名玩家每日固定从 simple、normal、hard 三个池分别随机抽取 2、2、1 个委托。
+pools:
+  simple:
+    stone_stockpile:
+      type: submit_item
+      target: minecraft:cobblestone
+      amount: 32
+      reward: 280
+      name: "石材补给"
+      description:
+        - "向后勤仓库上交 32 个原石。"
+        - "山地与矿洞都能找到充足的石材。"
+      java-icon: minecraft:cobblestone
+      bedrock-icon: textures/blocks/cobblestone.png
+    earthworks_materials:
+      type: submit_item
+      target: minecraft:dirt
+      amount: 48
+      reward: 420
+      name: "土方材料"
+      description:
+        - "向工地上交 48 个泥土。"
+        - "用于修补道路和填平低洼地。"
+      java-icon: minecraft:dirt
+      bedrock-icon: textures/blocks/dirt.png
+    beach_sand:
+      type: submit_item
+      target: minecraft:sand
+      amount: 32
+      reward: 280
+      name: "海岸细沙"
+      description:
+        - "向玻璃作坊上交 32 个沙子。"
+        - "请从沙滩或沙漠收集原料。"
+      java-icon: minecraft:sand
+      bedrock-icon: textures/blocks/sand.png
+    gravel_roadbed:
+      type: submit_item
+      target: minecraft:gravel
+      amount: 16
+      reward: 280
+      name: "道路垫层"
+      description:
+        - "向道路施工队上交 16 个砂砾。"
+        - "砂砾可用于铺设临时通路。"
+      java-icon: minecraft:gravel
+      bedrock-icon: textures/blocks/gravel.png
+    oak_lumber:
+      type: submit_item
+      target: minecraft:oak_log
+      amount: 16
+      reward: 560
+      name: "橡木木料"
+      description:
+        - "向木工坊上交 16 个橡木原木。"
+        - "请保留幼苗，让林地能够恢复。"
+      java-icon: minecraft:oak_log
+      bedrock-icon: textures/blocks/log_oak.png
+    coal_for_forge:
+      type: submit_item
+      target: minecraft:coal
+      amount: 8
+      reward: 280
+      name: "锻炉燃料"
+      description:
+        - "向锻炉上交 8 个煤炭。"
+        - "冶炼区正等待下一批燃料。"
+      java-icon: minecraft:coal
+      bedrock-icon: textures/items/coal.png
+    redstone_components:
+      type: submit_item
+      target: minecraft:redstone
+      amount: 8
+      reward: 280
+      name: "红石元件"
+      description:
+        - "向技术组上交 8 个红石粉。"
+        - "这些材料将用于维修自动装置。"
+      java-icon: minecraft:redstone
+      bedrock-icon: textures/items/redstone_dust.png
+    field_rations:
+      type: submit_item
+      target: minecraft:bread
+      amount: 8
+      reward: 180
+      name: "野外口粮"
+      description:
+        - "向巡逻队上交 8 个面包。"
+        - "足量食物能让巡逻队坚持更久。"
+      java-icon: minecraft:bread
+      bedrock-icon: textures/items/bread.png
+    baked_potato_rations:
+      type: submit_item
+      target: minecraft:baked_potato
+      amount: 8
+      reward: 180
+      name: "烤薯口粮"
+      description:
+        - "向值守人员上交 8 个烤马铃薯。"
+        - "适合长时间值守时补充体力。"
+      java-icon: minecraft:baked_potato
+      bedrock-icon: textures/items/potato_baked.png
+    beef_supply:
+      type: submit_item
+      target: minecraft:cooked_beef
+      amount: 8
+      reward: 250
+      name: "牛排补给"
+      description:
+        - "向前线营地上交 8 个烤牛排。"
+        - "请确保食物已经烤熟。"
+      java-icon: minecraft:cooked_beef
+      bedrock-icon: textures/items/beef_cooked.png
+    feather_delivery:
+      type: submit_item
+      target: minecraft:feather
+      amount: 16
+      reward: 150
+      name: "制箭羽毛"
+      description:
+        - "向制箭台上交 16 个羽毛。"
+        - "羽毛将被制成巡逻队所需的箭矢。"
+      java-icon: minecraft:feather
+      bedrock-icon: textures/items/feather.png
+    leather_bundle:
+      type: submit_item
+      target: minecraft:leather
+      amount: 8
+      reward: 180
+      name: "皮革收集"
+      description:
+        - "向护甲匠上交 8 个皮革。"
+        - "用于制作轻便的野外装备。"
+      java-icon: minecraft:leather
+      bedrock-icon: textures/items/leather.png
+    sugarcane_paper:
+      type: submit_item
+      target: minecraft:sugar_cane
+      amount: 24
+      reward: 180
+      name: "纸张原料"
+      description:
+        - "向文书室上交 24 个甘蔗。"
+        - "这些甘蔗会被加工成登记用纸。"
+      java-icon: minecraft:sugar_cane
+      bedrock-icon: textures/items/reeds.png
+    wheat_harvest:
+      type: submit_item
+      target: minecraft:wheat
+      amount: 24
+      reward: 180
+      name: "麦田收获"
+      description:
+        - "向粮仓上交 24 个小麦。"
+        - "成熟小麦可制成稳定的食物储备。"
+      java-icon: minecraft:wheat
+      bedrock-icon: textures/items/wheat.png
+    zombie_patrol:
+      type: kill_entity
+      target: minecraft:zombie
+      amount: 8
+      reward: 180
+      name: "清理亡灵"
+      description:
+        - "击杀 8 只僵尸，保障道路安全。"
+        - "夜间行动时请准备照明与食物。"
+      java-icon: minecraft:iron_sword
+      bedrock-icon: textures/items/iron_sword.png
+    skeleton_patrol:
+      type: kill_entity
+      target: minecraft:skeleton
+      amount: 6
+      reward: 180
+      name: "驱散骷髅"
+      description:
+        - "击杀 6 只骷髅，减少远程威胁。"
+        - "注意躲避它们射出的箭矢。"
+      java-icon: minecraft:bow
+      bedrock-icon: textures/items/bow_standby.png
+    spider_patrol:
+      type: kill_entity
+      target: minecraft:spider
+      amount: 6
+      reward: 160
+      name: "蛛网巡查"
+      description:
+        - "击杀 6 只蜘蛛，清理外围巢穴。"
+        - "请留意墙面与洞穴顶部。"
+      java-icon: minecraft:iron_sword
+      bedrock-icon: textures/items/iron_sword.png
+    creeper_patrol:
+      type: kill_entity
+      target: minecraft:creeper
+      amount: 4
+      reward: 200
+      name: "爆破隐患"
+      description:
+        - "击杀 4 只苦力怕，阻止设施受损。"
+        - "尽量在远离建筑的位置解决目标。"
+      java-icon: minecraft:shield
+      bedrock-icon: textures/items/shield.png
+    drowned_patrol:
+      type: kill_entity
+      target: minecraft:drowned
+      amount: 6
+      reward: 170
+      name: "河道巡防"
+      description:
+        - "击杀 6 只溺尸，保障河道通行。"
+        - "水域作战前请做好呼吸准备。"
+      java-icon: minecraft:trident
+      bedrock-icon: textures/items/trident.png
+    husk_patrol:
+      type: kill_entity
+      target: minecraft:husk
+      amount: 6
+      reward: 170
+      name: "沙漠清剿"
+      description:
+        - "击杀 6 只尸壳，清理沙漠商路。"
+        - "尸壳的攻击会带来饥饿效果。"
+      java-icon: minecraft:iron_sword
+      bedrock-icon: textures/items/iron_sword.png
+    slime_patrol:
+      type: kill_entity
+      target: minecraft:slime
+      amount: 8
+      reward: 160
+      name: "沼泽弹跳者"
+      description:
+        - "击杀 8 只史莱姆，清理沼泽外围。"
+        - "大型史莱姆会分裂成更小的个体。"
+      java-icon: minecraft:slime_ball
+      bedrock-icon: textures/items/slimeball.png
+    phantom_patrol:
+      type: kill_entity
+      target: minecraft:phantom
+      amount: 4
+      reward: 220
+      name: "夜空驱逐"
+      description:
+        - "击杀 4 只幻翼，恢复夜间秩序。"
+        - "请注意来自空中的俯冲攻击。"
+      java-icon: minecraft:bow
+      bedrock-icon: textures/items/bow_standby.png
+    pillager_patrol:
+      type: kill_entity
+      target: minecraft:pillager
+      amount: 4
+      reward: 220
+      name: "弩手警报"
+      description:
+        - "击杀 4 名掠夺者，保护村庄周边。"
+        - "优先寻找掩体，避免被弩箭命中。"
+      java-icon: minecraft:crossbow
+      bedrock-icon: textures/items/crossbow_standby.png
+
+  normal:
+    iron_restock:
+      type: submit_item
+      target: minecraft:iron_ingot
+      amount: 8
+      reward: 1200
+      name: "铁锭入库"
+      description:
+        - "向装备库上交 8 个铁锭。"
+        - "铁锭将用于维修工具与护甲。"
+      java-icon: minecraft:iron_ingot
+      bedrock-icon: textures/items/iron_ingot.png
+    copper_restock:
+      type: submit_item
+      target: minecraft:copper_ingot
+      amount: 16
+      reward: 1200
+      name: "铜材补货"
+      description:
+        - "向技术组上交 16 个铜锭。"
+        - "铜材适合制作避雷与装饰部件。"
+      java-icon: minecraft:copper_ingot
+      bedrock-icon: textures/items/copper_ingot.png
+    gold_restock:
+      type: submit_item
+      target: minecraft:gold_ingot
+      amount: 4
+      reward: 880
+      name: "贵金属保管"
+      description:
+        - "向金库上交 4 个金锭。"
+        - "请在返回城镇前妥善保管货物。"
+      java-icon: minecraft:gold_ingot
+      bedrock-icon: textures/items/gold_ingot.png
+    charcoal_delivery:
+      type: submit_item
+      target: minecraft:charcoal
+      amount: 16
+      reward: 520
+      name: "木炭燃料"
+      description:
+        - "向冶炼站上交 16 个木炭。"
+        - "木炭是远离矿洞时的重要燃料。"
+      java-icon: minecraft:charcoal
+      bedrock-icon: textures/items/charcoal.png
+    glassworks_order:
+      type: submit_item
+      target: minecraft:glass
+      amount: 16
+      reward: 420
+      name: "玻璃工坊订单"
+      description:
+        - "向工坊上交 16 个玻璃。"
+        - "透明建材将用于观察哨的窗户。"
+      java-icon: minecraft:glass
+      bedrock-icon: textures/blocks/glass.png
+    torch_delivery:
+      type: submit_item
+      target: minecraft:torch
+      amount: 32
+      reward: 380
+      name: "照明补给"
+      description:
+        - "向矿道管理员上交 32 个火把。"
+        - "保持照明能降低怪物在矿道生成的风险。"
+      java-icon: minecraft:torch
+      bedrock-icon: textures/items/torch_on.png
+    arrow_delivery:
+      type: submit_item
+      target: minecraft:arrow
+      amount: 32
+      reward: 440
+      name: "箭矢补充"
+      description:
+        - "向守卫上交 32 支箭。"
+        - "远程武器库存需要持续补充。"
+      java-icon: minecraft:arrow
+      bedrock-icon: textures/items/arrow.png
+    book_delivery:
+      type: submit_item
+      target: minecraft:book
+      amount: 8
+      reward: 520
+      name: "图书馆征集"
+      description:
+        - "向图书馆上交 8 本书。"
+        - "书籍将用于补充附魔与研究资料。"
+      java-icon: minecraft:book
+      bedrock-icon: textures/items/book_normal.png
+    lapis_delivery:
+      type: submit_item
+      target: minecraft:lapis_lazuli
+      amount: 12
+      reward: 560
+      name: "附魔青金石"
+      description:
+        - "向附魔室上交 12 个青金石。"
+        - "附魔工作台需要稳定的矿物供应。"
+      java-icon: minecraft:lapis_lazuli
+      bedrock-icon: textures/items/dye_powder_blue.png
+    quartz_delivery:
+      type: submit_item
+      target: minecraft:quartz
+      amount: 16
+      reward: 760
+      name: "下界石英"
+      description:
+        - "向建筑队上交 16 个下界石英。"
+        - "前往下界前请准备抗火装备。"
+      java-icon: minecraft:quartz
+      bedrock-icon: textures/items/quartz.png
+    rabbit_hide_delivery:
+      type: submit_item
+      target: minecraft:rabbit_hide
+      amount: 16
+      reward: 420
+      name: "兔皮收购"
+      description:
+        - "向皮革匠上交 16 个兔子皮。"
+        - "兔子皮可用于加工成皮革材料。"
+      java-icon: minecraft:rabbit_hide
+      bedrock-icon: textures/items/rabbit_hide.png
+    honey_bottle_delivery:
+      type: submit_item
+      target: minecraft:honey_bottle
+      amount: 8
+      reward: 560
+      name: "蜂蜜药剂"
+      description:
+        - "向医务室上交 8 瓶蜂蜜瓶。"
+        - "蜂蜜可用于缓解中毒带来的不适。"
+      java-icon: minecraft:honey_bottle
+      bedrock-icon: textures/items/honey_bottle.png
+    enderman_hunt:
+      type: kill_entity
+      target: minecraft:enderman
+      amount: 6
+      reward: 680
+      name: "末影追猎"
+      description:
+        - "击杀 6 只末影人，清理传送干扰。"
+        - "不要直视目标的眼睛。"
+      java-icon: minecraft:ender_pearl
+      bedrock-icon: textures/items/ender_pearl.png
+    witch_hunt:
+      type: kill_entity
+      target: minecraft:witch
+      amount: 5
+      reward: 620
+      name: "女巫药剂"
+      description:
+        - "击杀 5 名女巫，解除药水威胁。"
+        - "建议携带牛奶应对负面效果。"
+      java-icon: minecraft:milk_bucket
+      bedrock-icon: textures/items/bucket_milk.png
+    cave_spider_hunt:
+      type: kill_entity
+      target: minecraft:cave_spider
+      amount: 8
+      reward: 560
+      name: "矿井除蛛"
+      description:
+        - "击杀 8 只洞穴蜘蛛，清理废弃矿井。"
+        - "它们的攻击会造成中毒。"
+      java-icon: minecraft:iron_sword
+      bedrock-icon: textures/items/iron_sword.png
+    silverfish_hunt:
+      type: kill_entity
+      target: minecraft:silverfish
+      amount: 12
+      reward: 520
+      name: "虫害清除"
+      description:
+        - "击杀 12 只蠹虫，排除遗迹隐患。"
+        - "破坏可疑石块可能唤醒更多目标。"
+      java-icon: minecraft:iron_sword
+      bedrock-icon: textures/items/iron_sword.png
+    guardian_hunt:
+      type: kill_entity
+      target: minecraft:guardian
+      amount: 5
+      reward: 720
+      name: "海底神殿巡防"
+      description:
+        - "击杀 5 只守卫者，减轻海底航路压力。"
+        - "注意激光攻击与挖掘疲劳。"
+      java-icon: minecraft:trident
+      bedrock-icon: textures/items/trident.png
+    blaze_hunt:
+      type: kill_entity
+      target: minecraft:blaze
+      amount: 6
+      reward: 760
+      name: "烈焰清剿"
+      description:
+        - "击杀 6 只烈焰人，削减下界堡垒威胁。"
+        - "准备抗火药水会更稳妥。"
+      java-icon: minecraft:blaze_rod
+      bedrock-icon: textures/items/blaze_rod.png
+    piglin_brute_hunt:
+      type: kill_entity
+      target: minecraft:piglin_brute
+      amount: 3
+      reward: 780
+      name: "堡垒重装兵"
+      description:
+        - "击杀 3 名猪灵蛮兵，压制堡垒防线。"
+        - "它们不会因为金质装备而保持中立。"
+      java-icon: minecraft:golden_axe
+      bedrock-icon: textures/items/golden_axe.png
+    hoglin_hunt:
+      type: kill_entity
+      target: minecraft:hoglin
+      amount: 5
+      reward: 680
+      name: "疣猪兽驱离"
+      description:
+        - "击杀 5 只疣猪兽，保护下界补给线。"
+        - "狭窄地形有助于限制它们冲撞。"
+      java-icon: minecraft:iron_sword
+      bedrock-icon: textures/items/iron_sword.png
+    vex_hunt:
+      type: kill_entity
+      target: minecraft:vex
+      amount: 6
+      reward: 660
+      name: "恼鬼净化"
+      description:
+        - "击杀 6 只恼鬼，协助村庄恢复安全。"
+        - "它们可以穿过方块发动攻击。"
+      java-icon: minecraft:shield
+      bedrock-icon: textures/items/shield.png
+    player_duel:
+      type: kill_entity
+      target: minecraft:player
+      amount: 1
+      reward: 600
+      name: "切磋证明"
+      description:
+        - "击杀 1 名玩家。"
+        - "须为非自身的不同玩家。"
+      java-icon: minecraft:diamond_sword
+      bedrock-icon: textures/items/diamond_sword.png
+    player_bounty:
+      type: kill_entity
+      target: minecraft:player
+      amount: 2
+      reward: 1000
+      name: "悬赏追击"
+      description:
+        - "击杀 2 名玩家。"
+        - "须为非自身的不同玩家。"
+      java-icon: minecraft:crossbow
+      bedrock-icon: textures/items/crossbow_standby.png
+    drowned_squad:
+      type: kill_entity
+      target: minecraft:drowned
+      amount: 12
+      reward: 580
+      name: "深水肃清"
+      description:
+        - "击杀 12 只溺尸，确保水路补给安全。"
+        - "水下视野与氧气补给同样重要。"
+      java-icon: minecraft:trident
+      bedrock-icon: textures/items/trident.png
+
+  hard:
+    iron_bulk_order:
+      type: submit_item
+      target: minecraft:iron_ingot
+      amount: 24
+      reward: 3600
+      name: "装备库大单"
+      description:
+        - "向装备库上交 24 个铁锭。"
+        - "这批材料将用于整备远征队。"
+      java-icon: minecraft:iron_ingot
+      bedrock-icon: textures/items/iron_ingot.png
+    copper_bulk_order:
+      type: submit_item
+      target: minecraft:copper_ingot
+      amount: 48
+      reward: 3600
+      name: "技术储备大单"
+      description:
+        - "向技术组上交 48 个铜锭。"
+        - "大型装置的维护需要大量铜材。"
+      java-icon: minecraft:copper_ingot
+      bedrock-icon: textures/items/copper_ingot.png
+    gold_bulk_order:
+      type: submit_item
+      target: minecraft:gold_ingot
+      amount: 12
+      reward: 2640
+      name: "金库储备"
+      description:
+        - "向金库上交 12 个金锭。"
+        - "请谨慎规划穿越危险地区的路线。"
+      java-icon: minecraft:gold_ingot
+      bedrock-icon: textures/items/gold_ingot.png
+    diamond_delivery:
+      type: submit_item
+      target: minecraft:diamond
+      amount: 6
+      reward: 2880
+      name: "钻石委托"
+      description:
+        - "向高级工坊上交 6 个钻石。"
+        - "钻石将用于制作精密工具与装备。"
+      java-icon: minecraft:diamond
+      bedrock-icon: textures/items/diamond.png
+    emerald_delivery:
+      type: submit_item
+      target: minecraft:emerald
+      amount: 16
+      reward: 2400
+      name: "绿宝石调度"
+      description:
+        - "向贸易所上交 16 个绿宝石。"
+        - "这批货物将用于紧急贸易结算。"
+      java-icon: minecraft:emerald
+      bedrock-icon: textures/items/emerald.png
+    obsidian_delivery:
+      type: submit_item
+      target: minecraft:obsidian
+      amount: 12
+      reward: 1800
+      name: "黑曜石屏障"
+      description:
+        - "向防御工事上交 12 个黑曜石。"
+        - "黑曜石将用于加固关键设施。"
+      java-icon: minecraft:obsidian
+      bedrock-icon: textures/blocks/obsidian.png
+    ender_pearl_delivery:
+      type: submit_item
+      target: minecraft:ender_pearl
+      amount: 12
+      reward: 1680
+      name: "末影珍珠储备"
+      description:
+        - "向探索队上交 12 个末影珍珠。"
+        - "珍珠将用于远距离机动与末地探索。"
+      java-icon: minecraft:ender_pearl
+      bedrock-icon: textures/items/ender_pearl.png
+    blaze_rod_delivery:
+      type: submit_item
+      target: minecraft:blaze_rod
+      amount: 12
+      reward: 1800
+      name: "烈焰棒征集"
+      description:
+        - "向炼药室上交 12 根烈焰棒。"
+        - "炼药与末地探索都需要这类材料。"
+      java-icon: minecraft:blaze_rod
+      bedrock-icon: textures/items/blaze_rod.png
+    ghast_tear_delivery:
+      type: submit_item
+      target: minecraft:ghast_tear
+      amount: 8
+      reward: 2240
+      name: "恶魂之泪"
+      description:
+        - "向炼药室上交 8 个恶魂之泪。"
+        - "危险空域中的稀有材料极为珍贵。"
+      java-icon: minecraft:ghast_tear
+      bedrock-icon: textures/items/ghast_tear.png
+    nether_wart_delivery:
+      type: submit_item
+      target: minecraft:nether_wart
+      amount: 32
+      reward: 1600
+      name: "地狱疣药材"
+      description:
+        - "向炼药室上交 32 个地狱疣。"
+        - "稳定的药材供应能支撑长期远征。"
+      java-icon: minecraft:nether_wart
+      bedrock-icon: textures/items/nether_wart.png
+    shulker_shell_delivery:
+      type: submit_item
+      target: minecraft:shulker_shell
+      amount: 4
+      reward: 2400
+      name: "潜影壳收购"
+      description:
+        - "向仓储所上交 4 个潜影壳。"
+        - "它们可用于制作高价值收纳装备。"
+      java-icon: minecraft:shulker_shell
+      bedrock-icon: textures/items/shulker_shell.png
+    netherite_scrap_delivery:
+      type: submit_item
+      target: minecraft:netherite_scrap
+      amount: 4
+      reward: 3200
+      name: "远古残骸精炼"
+      description:
+        - "向高级锻造台上交 4 个下界合金碎片。"
+        - "请仅在准备充分后前往下界深层。"
+      java-icon: minecraft:netherite_scrap
+      bedrock-icon: textures/items/netherite_scrap.png
+    wither_skeleton_hunt:
+      type: kill_entity
+      target: minecraft:wither_skeleton
+      amount: 10
+      reward: 2200
+      name: "凋灵骷髅压制"
+      description:
+        - "击杀 10 只凋灵骷髅，削弱堡垒威胁。"
+        - "凋灵效果十分危险，请携带充分补给。"
+      java-icon: minecraft:diamond_sword
+      bedrock-icon: textures/items/diamond_sword.png
+    magma_cube_hunt:
+      type: kill_entity
+      target: minecraft:magma_cube
+      amount: 10
+      reward: 1800
+      name: "岩浆立方体肃清"
+      description:
+        - "击杀 10 只岩浆怪，清理下界道路。"
+        - "大型目标会分裂，请避免被包围。"
+      java-icon: minecraft:diamond_sword
+      bedrock-icon: textures/items/diamond_sword.png
+    evoker_hunt:
+      type: kill_entity
+      target: minecraft:evoker
+      amount: 4
+      reward: 2600
+      name: "唤魔者清剿"
+      description:
+        - "击杀 4 名唤魔者，阻止灾厄魔法蔓延。"
+        - "请留意尖牙与恼鬼的连续攻击。"
+      java-icon: minecraft:totem_of_undying
+      bedrock-icon: textures/items/totem.png
+    ravager_hunt:
+      type: kill_entity
+      target: minecraft:ravager
+      amount: 3
+      reward: 2400
+      name: "劫掠兽讨伐"
+      description:
+        - "击杀 3 只劫掠兽，守住村庄防线。"
+        - "正面硬抗风险较高，建议协同作战。"
+      java-icon: minecraft:shield
+      bedrock-icon: textures/items/shield.png
+    elder_guardian_hunt:
+      type: kill_entity
+      target: minecraft:elder_guardian
+      amount: 2
+      reward: 3000
+      name: "远古守卫者"
+      description:
+        - "击杀 2 只远古守卫者，解除神殿封锁。"
+        - "挖掘疲劳会妨碍行动，请提前准备。"
+      java-icon: minecraft:trident
+      bedrock-icon: textures/items/trident.png
+    warden_hunt:
+      type: kill_entity
+      target: minecraft:warden
+      amount: 1
+      reward: 4200
+      name: "幽匿深处"
+      description:
+        - "击杀 1 只监守者，排除深暗区域威胁。"
+        - "它极其危险，建议组队并准备撤离路线。"
+      java-icon: minecraft:netherite_sword
+      bedrock-icon: textures/items/netherite_sword.png
+    ender_dragon_hunt:
+      type: kill_entity
+      target: minecraft:ender_dragon
+      amount: 1
+      reward: 6000
+      name: "末影龙讨伐"
+      description:
+        - "击杀 1 条末影龙，完成末地远征目标。"
+        - "请先处理末地水晶，并留意龙息。"
+      java-icon: minecraft:dragon_head
+      bedrock-icon: textures/blocks/dragon_head.png
+    wither_hunt:
+      type: kill_entity
+      target: minecraft:wither
+      amount: 1
+      reward: 6500
+      name: "凋灵讨伐"
+      description:
+        - "击杀 1 只凋灵，阻止大规模破坏。"
+        - "请在远离公共建筑的区域进行战斗。"
+      java-icon: minecraft:nether_star
+      bedrock-icon: textures/items/nether_star.png
+    player_champion:
+      type: kill_entity
+      target: minecraft:player
+      amount: 4
+      reward: 2800
+      name: "竞技场冠军"
+      description:
+        - "击杀 4 名玩家。"
+        - "须为非自身的不同玩家。"
+      java-icon: minecraft:netherite_sword
+      bedrock-icon: textures/items/netherite_sword.png
+    player_warfront:
+      type: kill_entity
+      target: minecraft:player
+      amount: 6
+      reward: 4000
+      name: "前线战功"
+      description:
+        - "击杀 6 名玩家。"
+        - "须为非自身的不同玩家。"
+      java-icon: minecraft:crossbow
+      bedrock-icon: textures/items/crossbow_standby.png
+    enderman_expedition:
+      type: kill_entity
+      target: minecraft:enderman
+      amount: 20
+      reward: 2200
+      name: "末影远征"
+      description:
+        - "击杀 20 只末影人，保障远征队采集路线。"
+        - "利用水流与地形可以降低作战风险。"
+      java-icon: minecraft:ender_pearl
+      bedrock-icon: textures/items/ender_pearl.png
+    blaze_expedition:
+      type: kill_entity
+      target: minecraft:blaze
+      amount: 18
+      reward: 2300
+      name: "烈焰堡垒远征"
+      description:
+        - "击杀 18 只烈焰人，清扫堡垒深处。"
+        - "火焰攻击密集，抗火与远程武器很有帮助。"
+      java-icon: minecraft:blaze_rod
+      bedrock-icon: textures/items/blaze_rod.png
