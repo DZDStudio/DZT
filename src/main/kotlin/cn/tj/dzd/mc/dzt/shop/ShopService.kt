@@ -4,6 +4,7 @@ import cn.tj.dzd.mc.dzt.data.repository.PersistentShopPurchaseRepository
 import cn.tj.dzd.mc.dzt.economy.EconomyRefundStatus
 import cn.tj.dzd.mc.dzt.economy.EconomyWithdrawalStatus
 import cn.tj.dzd.mc.dzt.economy.ServiceEconomy
+import cn.tj.dzd.mc.dzt.log.PlayerLogService
 import java.math.BigDecimal
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -69,7 +70,17 @@ object ShopService {
         quantity: Int,
         inventory: ShopInventoryPort,
     ): CompletableFuture<ShopCheckoutResult> {
-        return application.purchase(playerId, productId, quantity, inventory)
+        return application.purchase(playerId, productId, quantity, inventory).thenApply { result ->
+            if (result.successful) {
+                PlayerLogService.recordPurchase(
+                    playerId = playerId,
+                    productId = requireNotNull(result.product).id,
+                    quantity = result.quantity,
+                    totalPrice = requireNotNull(result.totalPrice),
+                )
+            }
+            result
+        }
     }
 }
 

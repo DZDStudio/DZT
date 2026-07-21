@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.economy
 
 import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
+import cn.tj.dzd.mc.dzt.log.PlayerLogService
 import net.thenextlvl.service.economy.Account
 import net.thenextlvl.service.economy.EconomyController
 import net.thenextlvl.service.economy.currency.Currency
@@ -107,6 +108,9 @@ object ServiceEconomy {
                                 "接收玩家 UUID: $to",
                                 "金额: ${formatAmount(amount)}",
                             )
+                        }
+                        if (result.successful) {
+                            PlayerLogService.recordTransfer(from, to, amount)
                         }
                         result
                     }
