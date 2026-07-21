@@ -4,6 +4,7 @@ import cn.tj.dzd.mc.dzt.data.repository.PersistentCommissionProgressRepository
 import cn.tj.dzd.mc.dzt.core.RepositoryResult
 import cn.tj.dzd.mc.dzt.economy.ServiceEconomy
 import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
+import cn.tj.dzd.mc.dzt.log.PlayerLogService
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
 import taboolib.common.platform.function.severe
@@ -390,6 +391,11 @@ object CommissionService {
                             }
                         }
                     } else {
+                        PlayerLogService.recordCommissionReward(
+                            playerId = playerId,
+                            commissionId = definition.id,
+                            amount = definition.reward,
+                        )
                         when (repository.completeClaim(playerId, date, definition.id, operationId)) {
                             is RepositoryResult.Success -> {
                                 CommissionClaimResult(CommissionClaimStatus.SUCCESS, definition)
