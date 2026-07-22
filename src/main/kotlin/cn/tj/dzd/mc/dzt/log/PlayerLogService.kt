@@ -29,6 +29,7 @@ import java.util.UUID
 object PlayerLogService {
 
     private const val LOG_RETENTION_DAYS = 30L
+    private const val MAX_TYPE_LENGTH = 32
     private const val MAX_MESSAGE_LENGTH = 128
     private val plainTextSerializer = PlainTextComponentSerializer.plainText()
     private val repository: PlayerLogRepository = PersistentPlayerLogRepository
@@ -150,27 +151,23 @@ object PlayerLogService {
             .coerceAtLeast(0)
         val message = buildMessage(player, ping, detail)
 
-        enqueue {
-            repository.append(type, message)
-        }
+        append(type, message)
     }
 
     private fun record(playerId: UUID, type: String, detail: String) {
-        val normalizedDetail = normalizeDetail(detail)
-        val message = "玩家 UUID：$playerId；$normalizedDetail".take(MAX_MESSAGE_LENGTH)
-        enqueue {
-            repository.append(type, message)
-        }
+        append(type, "玩家 UUID：$playerId；$detail")
     }
 
     private fun buildMessage(player: Player, ping: Int, detail: String): String {
-        val normalizedDetail = normalizeDetail(detail)
-        return "玩家名称：${player.name}，UUID：${player.uniqueId}，Ping：${ping}ms；$normalizedDetail"
-            .take(MAX_MESSAGE_LENGTH)
+        return "玩家名称：${player.name}，UUID：${player.uniqueId}，Ping：${ping}ms；$detail"
     }
 
-    private fun normalizeDetail(detail: String): String {
-        return detail.replace('\n', ' ').replace('\r', ' ')
+    private fun append(type: String, message: String) {
+        val normalizedType = PlayerLogText.normalizeForStorage(type, MAX_TYPE_LENGTH)
+        val normalizedMessage = PlayerLogText.normalizeForStorage(message, MAX_MESSAGE_LENGTH)
+        enqueue {
+            repository.append(normalizedType, normalizedMessage)
+        }
     }
 
     private fun formatAmount(amount: BigDecimal): String {
