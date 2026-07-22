@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.expansion.DurationType
 import taboolib.expansion.submitChain
+import taboolib.platform.compat.checkPermission
 import java.util.UUID
 
 object PreferredRouteService {
@@ -53,7 +54,7 @@ object PreferredRouteService {
      * @return 玩家拥有 [PERMISSION] 时返回 `true`。
      */
     fun canUse(player: Player): Boolean {
-        return player.hasPermission(PERMISSION)
+        return player.checkPermission(PERMISSION)
     }
 
     private fun transfer(targetIp: String, snapshot: PreferredRoutePlayerSnapshot) {

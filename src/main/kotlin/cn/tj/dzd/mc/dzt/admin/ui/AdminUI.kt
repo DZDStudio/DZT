@@ -3,6 +3,7 @@ package cn.tj.dzd.mc.dzt.admin.ui
 import cn.tj.dzd.mc.dzt.ui.MainMenuNavigation
 import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelection
 import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelectUI
+import cn.tj.dzd.mc.dzt.ui.OnlinePlayerSelectSecondaryAction
 import cn.tj.dzd.mc.dzt.util.foliaCloseInventory
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.foliaTeleport
@@ -18,6 +19,7 @@ import org.geysermc.cumulus.util.FormImage
 import taboolib.library.xseries.XMaterial
 import taboolib.module.ui.openMenu
 import taboolib.module.ui.type.Chest
+import taboolib.platform.compat.checkPermission
 import taboolib.platform.util.buildItem
 
 /** Java 箱子菜单与基岩表单共用的管理界面。 */
@@ -39,7 +41,7 @@ object AdminUI {
      * @return 玩家拥有 [PERMISSION] 时返回 `true`。
      */
     fun canUse(player: Player): Boolean {
-        return player.hasPermission(PERMISSION)
+        return player.checkPermission(PERMISSION)
     }
 
     /**
@@ -93,8 +95,8 @@ object AdminUI {
                 toggleGameMode(player)
             }
             set('T', buildItem(XMaterial.ENDER_PEARL) {
-                name = "§l§6传送至玩家"
-                lore += "§7选择一名在线玩家并立即传送"
+                name = "§l§6管理员传送"
+                lore += "§7传送至在线玩家或将其传送至你"
             }) {
                 openTeleportTargetSelection(player)
             }
@@ -110,7 +112,7 @@ object AdminUI {
                 .content("当前模式：${gameModeName(current)}")
                 .button("返回主菜单", FormImage.Type.PATH, BACK_ICON)
                 .button("切换为${target.displayName}模式", FormImage.Type.PATH, target.bedrockIcon)
-                .button("传送至玩家", FormImage.Type.PATH, TELEPORT_ICON)
+                .button("管理员传送", FormImage.Type.PATH, TELEPORT_ICON)
                 .validResultHandler { response ->
                     player.foliaRun {
                         when (response.clickedButtonId()) {
@@ -131,11 +133,21 @@ object AdminUI {
 
             OnlinePlayerSelectUI.open(
                 player = this,
-                title = "§l§c传送至玩家",
-                description = "选择一名在线玩家并立即传送。",
+                title = "§l§c管理员传送",
+                description = "选择一名在线玩家并执行传送操作。",
                 emptyMessage = "当前没有其他在线玩家。",
                 selectLore = "§7点击立即传送至该玩家",
                 backLabel = "§l§e返回管理菜单",
+                secondaryAction = OnlinePlayerSelectSecondaryAction(
+                    javaLore = "§eShift + 右键将该玩家传送至你",
+                    bedrockPrimaryLabel = "传送至该玩家",
+                    bedrockPrimaryIcon = TELEPORT_ICON,
+                    bedrockSecondaryLabel = "将该玩家传送至你",
+                    bedrockSecondaryIcon = "textures/items/recovery_compass_item.png",
+                    onSelect = { target ->
+                        teleportTargetToAdmin(this, target)
+                    },
+                ),
                 onBack = {
                     open(this)
                 },
@@ -168,6 +180,47 @@ object AdminUI {
         }.whenComplete { available, error ->
             if (error != null || available != true) {
                 runForOnlinePlayer(playerId) {
+                    sendDZTError("传送失败，目标玩家可能已离线。")
+                }
+            }
+        }
+    }
+
+    private fun teleportTargetToAdmin(admin: Player, target: OnlinePlayerSelection) {
+        val adminId = admin.uniqueId
+        val adminName = admin.name
+        target.withOnlinePlayer {
+            val targetPlayer = this
+            admin.foliaRun {
+                if (!requirePermission(this)) {
+                    return@foliaRun
+                }
+
+                targetPlayer.foliaTeleport(this).whenComplete { success, error ->
+                    val teleported = error == null && success == true
+                    runForOnlinePlayer(adminId) {
+                        if (teleported) {
+                            sendDZTSuccess("已将 ${target.name} 传送至你的位置。")
+                        } else {
+                            sendDZTError("传送失败，目标玩家可能已离线。")
+                        }
+                    }
+                    if (teleported) {
+                        target.withOnlinePlayer {
+                            sendDZTSuccess("管理员 $adminName 已将你传送至其位置。")
+                        }
+                    }
+                }
+            }.whenComplete { scheduled, error ->
+                if (error != null || scheduled != true) {
+                    runForOnlinePlayer(adminId) {
+                        sendDZTError("传送失败，无法执行管理员传送。")
+                    }
+                }
+            }
+        }.whenComplete { available, error ->
+            if (error != null || available != true) {
+                runForOnlinePlayer(adminId) {
                     sendDZTError("传送失败，目标玩家可能已离线。")
                 }
             }
