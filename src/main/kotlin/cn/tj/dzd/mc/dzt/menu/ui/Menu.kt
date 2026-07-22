@@ -4,6 +4,7 @@ import cn.tj.dzd.mc.dzt.admin.ui.AdminUI
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
 import cn.tj.dzd.mc.dzt.commission.ui.CommissionUI
 import cn.tj.dzd.mc.dzt.economy.ui.TransferUI
+import cn.tj.dzd.mc.dzt.flight.ui.FlightUI
 import cn.tj.dzd.mc.dzt.shop.ui.ShopUI
 import cn.tj.dzd.mc.dzt.title.ui.TitleUI
 import cn.tj.dzd.mc.dzt.ui.MainMenuNavigation
@@ -90,8 +91,8 @@ object Menu {
                 "####I####",
                 "#       #",
                 "# T E C #",
-                "# H Q S #",
-                "#   A   #",
+                "# H Q F #",
+                "# S   A #",
                 "#########"
             )
             set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) {
@@ -138,6 +139,13 @@ object Menu {
                 CommissionUI.open(pl)
             }
 
+            set('F', buildItem(XMaterial.ELYTRA) {
+                name = "飞行"
+                lore += "开关生存飞行功能"
+            }) {
+                FlightUI.open(pl)
+            }
+
             if (AdminUI.canUse(pl)) {
                 set('A', buildItem(XMaterial.COMMAND_BLOCK) {
                     name = "§l§c管理"
@@ -170,6 +178,7 @@ object Menu {
             .button("称号", FormImage.Type.PATH, "textures/items/name_tag.png")
             .button("商店", FormImage.Type.PATH, "textures/blocks/chest_front.png")
             .button("每日委托", FormImage.Type.PATH, "textures/items/book_normal.png")
+            .button("飞行", FormImage.Type.PATH, "textures/items/elytra.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
         if (AdminUI.canUse(pl)) {
@@ -184,9 +193,10 @@ object Menu {
                     2 -> TitleUI.open(this)
                     3 -> ShopUI.open(this)
                     4 -> CommissionUI.open(this)
-                    5 -> foliaPerformCommand("geyser advancements")
-                    6 -> openBedrockSuicideConfirmation(this)
-                    7 -> AdminUI.open(this)
+                    5 -> FlightUI.open(this)
+                    6 -> foliaPerformCommand("geyser advancements")
+                    7 -> openBedrockSuicideConfirmation(this)
+                    8 -> AdminUI.open(this)
                 }
             }
         }

@@ -12,7 +12,8 @@ import kotlin.test.assertTrue
  * Guards the project rule that TabooLib is used whenever it offers a reliable replacement.
  *
  * Bukkit facade calls listed here intentionally remain platform boundaries: service discovery,
- * server shutdown, Paper/Folia metrics, namespaced world resolution, and typed player lookup.
+ * server shutdown, Paper/Folia metrics, namespaced world resolution, typed player lookup,
+ * and player flight ability access.
  */
 class PlatformBoundaryTest {
 
@@ -37,6 +38,26 @@ class PlatformBoundaryTest {
             assertFalse(pattern in source, "Redundant platform implementation returned: $pattern")
         }
         assertTrue(sourceFiles().none { relativePath(it).endsWith("sidebar/PacketSidebar.kt") })
+    }
+
+    @Test
+    fun `native player flight abilities remain isolated in the flight service`() {
+        val accesses = sourceFiles()
+            .flatMap { path ->
+                Files.readAllLines(path).flatMap { line ->
+                    val trimmed = line.trimStart()
+                    if (trimmed.startsWith("*") || trimmed.startsWith("//")) {
+                        emptyList()
+                    } else {
+                        PLAYER_FLIGHT_ABILITY.findAll(line).map { match ->
+                            NativePlayerFlightAccess(relativePath(path), match.value)
+                        }.toList()
+                    }
+                }
+            }
+            .toSet()
+
+        assertEquals(ALLOWED_NATIVE_PLAYER_FLIGHT_ACCESSES, accesses)
     }
 
     @Test
@@ -97,9 +118,14 @@ class PlatformBoundaryTest {
 
     private data class BukkitCall(val path: String, val method: String)
 
+    private data class NativePlayerFlightAccess(val path: String, val property: String)
+
     private companion object {
         private val SOURCE_ROOT: Path = Path.of("src/main/kotlin")
         private val BUKKIT_CALL = Regex("\\bBukkit\\.(\\w+)")
+        private val PLAYER_FLIGHT_ABILITY = Regex(
+            "\\b(?:allowFlight|isFlying|getAllowFlight|setAllowFlight|setFlying)\\b"
+        )
 
         private val ALLOWED_BUKKIT_CALLS = setOf(
             BukkitCall("cn/tj/dzd/mc/dzt/data/DatabaseGuard.kt", "shutdown"),
@@ -107,6 +133,11 @@ class PlatformBoundaryTest {
             BukkitCall("cn/tj/dzd/mc/dzt/sidebar/Sidebar.kt", "getTPS"),
             BukkitCall("cn/tj/dzd/mc/dzt/teleport/service/Player.kt", "getWorld"),
             BukkitCall("cn/tj/dzd/mc/dzt/util/Folia.kt", "getPlayer"),
+        )
+
+        private val ALLOWED_NATIVE_PLAYER_FLIGHT_ACCESSES = setOf(
+            NativePlayerFlightAccess("cn/tj/dzd/mc/dzt/flight/FlightService.kt", "allowFlight"),
+            NativePlayerFlightAccess("cn/tj/dzd/mc/dzt/flight/FlightService.kt", "isFlying"),
         )
 
         private val REDUNDANT_PATTERNS = listOf(

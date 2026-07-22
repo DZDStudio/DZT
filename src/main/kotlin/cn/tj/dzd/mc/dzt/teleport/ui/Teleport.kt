@@ -76,7 +76,7 @@ object Teleport {
 
             set('P', buildItem(XMaterial.PLAYER_HEAD) {
                 name = "§l§6玩家"
-                lore += "§7向在线玩家发起传送请求"
+                lore += "§7发起传送请求或邀请玩家到身边"
             }) {
                 TPA.openTPAUI(player)
             }
