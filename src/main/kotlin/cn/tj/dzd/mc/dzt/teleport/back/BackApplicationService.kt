@@ -81,7 +81,7 @@ class BackApplicationService(
 
     companion object {
         /** 默认的单玩家返回点保留上限。 */
-        const val DEFAULT_MAXIMUM_BACKS = 32
+        const val DEFAULT_MAXIMUM_BACKS = 128
 
         private const val LOCK_STRIPES = 64
     }

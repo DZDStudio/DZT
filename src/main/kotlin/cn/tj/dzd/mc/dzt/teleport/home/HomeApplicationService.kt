@@ -110,10 +110,10 @@ class HomeApplicationService(
 
     companion object {
         /** 默认的单玩家 Home 数量上限。 */
-        const val DEFAULT_MAXIMUM_HOMES = 16
+        const val DEFAULT_MAXIMUM_HOMES = 64
 
         /** Home 名称最大长度。 */
-        const val MAX_NAME_LENGTH = 16
+        const val MAX_NAME_LENGTH = 32
 
         /** 世界名称最大长度，与现有数据库字段保持一致。 */
         const val MAX_WORLD_NAME_LENGTH = 32
