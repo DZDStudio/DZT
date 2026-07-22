@@ -1,14 +1,13 @@
 package cn.tj.dzd.mc.dzt.route
 
 import cn.tj.dzd.mc.dzt.data.config
-import cn.tj.dzd.mc.dzt.data.repository.PersistentPreferredRouteRepository
-import cn.tj.dzd.mc.dzt.platform.DztAsyncExecutor
 import cn.tj.dzd.mc.dzt.teleport.ui.sendTeleportSuccess
 import cn.tj.dzd.mc.dzt.util.DEFAULT_FOLIA_TELEPORT_SOUND
 import cn.tj.dzd.mc.dzt.util.foliaPlaySound
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
 import cn.tj.dzd.mc.dzt.util.runForOnlinePlayer
+import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerJoinEvent
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.expansion.DurationType
@@ -16,12 +15,14 @@ import taboolib.expansion.submitChain
 import java.util.UUID
 
 object PreferredRouteService {
+    /** 允许玩家在加入服务器后进入优选线路的权限。 */
+    const val PERMISSION = "dzt.route"
+
     private const val JAVA_PORT = 26111
     private const val BEDROCK_PORT = 36332
     private const val ROUTE_COOLDOWN_MILLIS = 30_000L
 
     private val routeCooldowns = mutableMapOf<UUID, Long>()
-    private val application = PreferredRouteApplicationService(PersistentPreferredRouteRepository)
 
     @SubscribeEvent
     fun onPlayerJoin(event: PlayerJoinEvent) {
@@ -32,24 +33,27 @@ object PreferredRouteService {
         }
 
         player.foliaRun {
+            if (!canUse(this)) {
+                return@foliaRun
+            }
+
             val snapshot = PreferredRoutePlayerSnapshot(uniqueId, isBePlayer())
-            DztAsyncExecutor.supply {
-                isPreferredPlayer(snapshot.uuid)
-            }.whenComplete { preferred, error ->
-                if (error != null || preferred != true) {
-                    return@whenComplete
-                }
-                runForOnlinePlayer(snapshot.uuid) {
-                    if (tryAcquireRouteCooldown(snapshot.uuid)) {
-                        transfer(targetIp, snapshot)
-                    }
-                }
+            if (tryAcquireRouteCooldown(snapshot.uuid)) {
+                transfer(targetIp, snapshot)
             }
         }
     }
 
-    fun isPreferredPlayer(uuid: UUID): Boolean {
-        return application.isPreferred(uuid)
+    /**
+     * 检查玩家是否拥有进入优选线路的权限。
+     *
+     * 此接口读取玩家权限状态，应在玩家的 Folia 实体线程调用。
+     *
+     * @param player 要检查的在线玩家。
+     * @return 玩家拥有 [PERMISSION] 时返回 `true`。
+     */
+    fun canUse(player: Player): Boolean {
+        return player.hasPermission(PERMISSION)
     }
 
     private fun transfer(targetIp: String, snapshot: PreferredRoutePlayerSnapshot) {
