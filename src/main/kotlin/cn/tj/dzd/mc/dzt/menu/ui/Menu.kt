@@ -1,5 +1,6 @@
 package cn.tj.dzd.mc.dzt.menu.ui
 
+import cn.tj.dzd.mc.dzt.admin.ui.AdminUI
 import cn.tj.dzd.mc.dzt.teleport.ui.Teleport.openTeleport
 import cn.tj.dzd.mc.dzt.commission.ui.CommissionUI
 import cn.tj.dzd.mc.dzt.economy.ui.TransferUI
@@ -90,7 +91,7 @@ object Menu {
                 "#       #",
                 "# T E C #",
                 "# H Q S #",
-                "#       #",
+                "#   A   #",
                 "#########"
             )
             set('#', buildItem(XMaterial.GRAY_STAINED_GLASS_PANE) {
@@ -137,6 +138,15 @@ object Menu {
                 CommissionUI.open(pl)
             }
 
+            if (AdminUI.canUse(pl)) {
+                set('A', buildItem(XMaterial.COMMAND_BLOCK) {
+                    name = "§l§c管理"
+                    lore += "§7打开管理菜单"
+                }) {
+                    AdminUI.open(pl)
+                }
+            }
+
             set('S', buildItem(XMaterial.WITHER_SKELETON_SKULL) {
                 name = "§l§c自杀"
                 lore += "§7结束当前生命"
@@ -162,20 +172,24 @@ object Menu {
             .button("每日委托", FormImage.Type.PATH, "textures/items/book_normal.png")
             .button("成就", FormImage.Type.PATH, "textures/ui/achievements_pause_menu_icon.png")
             .button("自杀", FormImage.Type.PATH, "textures/ui/warning_sad_steve.png")
-            .validResultHandler { res ->
-                val id = res.clickedButtonId()
-                pl.foliaRun {
-                    when (id) {
-                        0 -> openTeleport()
-                        1 -> TransferUI.openTransferUI(this)
-                        2 -> TitleUI.open(this)
-                        3 -> ShopUI.open(this)
-                        4 -> CommissionUI.open(this)
-                        5 -> foliaPerformCommand("geyser advancements")
-                        6 -> openBedrockSuicideConfirmation(this)
-                    }
+        if (AdminUI.canUse(pl)) {
+            fm.button("管理", FormImage.Type.PATH, "textures/ui/settings_glyph_color_2x.png")
+        }
+        fm.validResultHandler { res ->
+            val id = res.clickedButtonId()
+            pl.foliaRun {
+                when (id) {
+                    0 -> openTeleport()
+                    1 -> TransferUI.openTransferUI(this)
+                    2 -> TitleUI.open(this)
+                    3 -> ShopUI.open(this)
+                    4 -> CommissionUI.open(this)
+                    5 -> foliaPerformCommand("geyser advancements")
+                    6 -> openBedrockSuicideConfirmation(this)
+                    7 -> AdminUI.open(this)
                 }
             }
+        }
         pl.sendForm(fm)
     }
 
