@@ -111,6 +111,7 @@ tasks.test {
 
 tasks.withType<RunServer>().configureEach {
     javaLauncher.set(java25Launcher)
+    systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
 }
 
 runPaper.folia.registerTask()

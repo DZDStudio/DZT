@@ -23,6 +23,7 @@ import taboolib.common.platform.command.CommandHeader
 import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.mainCommand
 import taboolib.common.platform.command.subCommand
+import taboolib.common.platform.function.warning
 import taboolib.platform.util.onlinePlayers
 import java.math.BigDecimal
 import java.time.Instant
@@ -291,10 +292,35 @@ object TitleAdminCommand {
                             "§f${BanText.formatTime(result.record.unbanAt)} §a北京时间。"
                     )
                     BanService.disconnectOnlinePlayer(result.record)
+                    publishBanAnnouncement(target.label, result.record, hours)
                 }
 
                 BanIssueResult.Failed,
                 null -> sender.sendLines("§c封禁 ${target.label} 失败。")
+            }
+        }
+    }
+
+    /**
+     * 向玩家交流群异步发送封禁公示。
+     *
+     * OneBot 是外部依赖，发送失败只写入控制台告警，不能影响已经持久化的封禁结果。
+     *
+     * @param playerName 公示中展示的玩家名称。
+     * @param ban 已成功写入的封禁记录。
+     * @param hours 本次封禁使用的小时数。
+     */
+    private fun publishBanAnnouncement(playerName: String, ban: PlayerBan, hours: BigDecimal) {
+        val message = BanText.playerGroupAnnouncement(playerName, ban, hours)
+        val future = runCatching {
+            OneBotGroupApi.sendPlayerGroupMessage(message)
+        }.getOrElse { error ->
+            warning("封禁公示发送失败（玩家：$playerName）：${error.readableMessage()}")
+            return
+        }
+        future.whenComplete { _, error ->
+            if (error != null) {
+                warning("封禁公示发送失败（玩家：$playerName）：${error.readableMessage()}")
             }
         }
     }

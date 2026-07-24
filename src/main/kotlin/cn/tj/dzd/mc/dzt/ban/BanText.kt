@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.ban
 
 import net.kyori.adventure.text.Component
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -35,6 +36,25 @@ internal object BanText {
     /** 数据库状态不可用时的登录拒绝信息。 */
     fun storageUnavailableMessage(): Component {
         return Component.text("封禁状态暂时无法验证，请稍后重试或联系管理员。")
+    }
+
+    /**
+     * 构建发送到玩家 QQ 交流群的封禁公示。
+     *
+     * @param playerName 被封禁玩家的显示名称；空白名称会回退为 UUID。
+     * @param ban 已成功写入的封禁记录。
+     * @param hours 本次封禁时使用的小时数，可为小数。
+     * @return 不含 CQ 码的纯文本公示。
+     */
+    fun playerGroupAnnouncement(playerName: String, ban: PlayerBan, hours: BigDecimal): String {
+        val label = playerName
+            .replace("\r\n", " ")
+            .replace('\r', ' ')
+            .replace('\n', ' ')
+            .trim()
+            .ifBlank { ban.playerId.toString() }
+        val displayHours = hours.stripTrailingZeros().toPlainString()
+        return "[封禁公示] 玩家${label}因${ban.reason}封禁${displayHours}小时。"
     }
 
     private val BEIJING_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter
