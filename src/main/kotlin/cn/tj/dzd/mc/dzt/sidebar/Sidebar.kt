@@ -1,10 +1,12 @@
 package cn.tj.dzd.mc.dzt.sidebar
 
 import cn.tj.dzd.mc.dzt.economy.ServiceEconomy
-import cn.tj.dzd.mc.dzt.util.TextLogo
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import cn.tj.dzd.mc.dzt.util.isBePlayer
 import cn.tj.dzd.mc.dzt.util.networkPing
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerJoinEvent
@@ -39,6 +41,12 @@ object Sidebar {
     private val balanceRequests = ConcurrentHashMap<UUID, Long>()
     private val reportedBalanceFailures = ConcurrentHashMap<UUID, Long>()
     private val taskGeneration = AtomicLong()
+
+    private data class SidebarText(
+        val text: String,
+        val color: String? = null,
+        val bold: Boolean = false,
+    )
 
     private data class SidebarTask(
         val player: Player,
@@ -218,7 +226,7 @@ object Sidebar {
 
     private fun Player.updateSidebar(balance: BigDecimal?) {
         val sidebarLines = buildSidebarLines(balance)
-        sendScoreboard(TextLogo, *sidebarLines.toTypedArray())
+        sendScoreboard(sidebarTitle(), *sidebarLines.toTypedArray())
     }
 
     private fun Player.buildSidebarLines(balance: BigDecimal?): List<String> {
@@ -228,19 +236,63 @@ object Sidebar {
         val regionUtilisation = FoliaRegionMetrics.currentOneMinuteUtilisation()
 
         return buildList {
-            add("")
-            add("§eDDB: §6${formatBalance(balance)}")
-            add("§ePing: §a${ping}ms${if (bedrockPlayer) " §7BE" else ""}")
-            add("§eTPS: ${formatTps(tps)}")
-            add("§eUsage: ${formatRegionUtilisation(regionUtilisation)}")
-            add("")
-            add("§f${beijingTime()}")
-            add("§7QQ: $SERVER_QQ_GROUP")
+            add(scoreboardComponent())
+            add(scoreboardComponent(
+                SidebarText("DDB: ", "yellow"),
+                SidebarText(formatBalance(balance), "gold"),
+            ))
+            add(scoreboardComponent(
+                SidebarText("Ping: ", "yellow"),
+                SidebarText("${ping}ms", "green"),
+                *if (bedrockPlayer) arrayOf(SidebarText(" BE", "gray")) else emptyArray(),
+            ))
+            add(scoreboardComponent(
+                SidebarText("TPS: ", "yellow"),
+                formatTps(tps),
+            ))
+            add(scoreboardComponent(
+                SidebarText("Usage: ", "yellow"),
+                formatRegionUtilisation(regionUtilisation),
+            ))
+            add(scoreboardComponent())
+            add(scoreboardComponent(SidebarText(beijingTime(), "white")))
+            add(scoreboardComponent(SidebarText("QQ: $SERVER_QQ_GROUP", "gray")))
 
             if (!bedrockPlayer) {
-                add("§7Shift+F 打开菜单")
+                add(scoreboardComponent(SidebarText("Shift+F 打开菜单", "gray")))
             }
         }
+    }
+
+    private fun sidebarTitle(): String {
+        return scoreboardComponent(
+            SidebarText("D", "blue", bold = true),
+            SidebarText("Z", "light_purple", bold = true),
+            SidebarText("D", "dark_green", bold = true),
+            SidebarText("G", "dark_purple", bold = true),
+            SidebarText("a", "gold", bold = true),
+            SidebarText("m", "blue", bold = true),
+            SidebarText("e", "light_purple", bold = true),
+        )
+    }
+
+    private fun scoreboardComponent(vararg segments: SidebarText): String {
+        return buildJsonObject {
+            put("text", "")
+            if (segments.isNotEmpty()) {
+                put("extra", buildJsonArray {
+                    segments.forEach { segment ->
+                        add(buildJsonObject {
+                            put("text", segment.text)
+                            segment.color?.let { put("color", it) }
+                            if (segment.bold) {
+                                put("bold", true)
+                            }
+                        })
+                    }
+                })
+            }
+        }.toString()
     }
 
     private fun formatBalance(balance: BigDecimal?): String {
@@ -257,26 +309,26 @@ object Sidebar {
         return Bukkit.getTPS().firstOrNull()?.coerceAtLeast(0.0) ?: 0.0
     }
 
-    private fun formatTps(tps: Double): String {
+    private fun formatTps(tps: Double): SidebarText {
         val color = when {
-            tps >= 18.0 -> "§a"
-            tps >= 15.0 -> "§e"
-            else -> "§c"
+            tps >= 18.0 -> "green"
+            tps >= 15.0 -> "yellow"
+            else -> "red"
         }
-        return "$color${String.format(Locale.ROOT, "%.2f", tps)}"
+        return SidebarText(String.format(Locale.ROOT, "%.2f", tps), color)
     }
 
-    private fun formatRegionUtilisation(utilisation: Double?): String {
+    private fun formatRegionUtilisation(utilisation: Double?): SidebarText {
         if (utilisation == null) {
-            return "§7N/A"
+            return SidebarText("N/A", "gray")
         }
 
         val color = when {
-            utilisation < 0.6 -> "§a"
-            utilisation < 0.8 -> "§e"
-            else -> "§c"
+            utilisation < 0.6 -> "green"
+            utilisation < 0.8 -> "yellow"
+            else -> "red"
         }
-        return "$color${String.format(Locale.ROOT, "%.1f", utilisation * 100.0)}%"
+        return SidebarText(String.format(Locale.ROOT, "%.1f", utilisation * 100.0) + "%", color)
     }
 
     private fun beijingTime(): String {
