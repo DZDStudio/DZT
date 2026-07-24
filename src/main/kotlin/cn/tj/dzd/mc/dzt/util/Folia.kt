@@ -48,6 +48,21 @@ fun runForOnlinePlayer(uuid: UUID, block: Player.() -> Unit): CompletableFuture<
 }
 
 /**
+ * 通过 UUID Folia 兼容地踢出在线玩家。
+ *
+ * TabooLib 没有 UUID 到强类型 [Player] 的等价查找接口；因此该必要 Bukkit 边界集中在 Folia 工具中，并立即交给
+ * [foliaKick] 调度到目标玩家的实体线程。
+ *
+ * @param uuid 目标玩家 UUID。
+ * @param message 踢出提示。
+ * @return 操作是否成功进入并完成执行；目标离线或实体调度器失效时完成为 false。
+ */
+fun kickOnlinePlayer(uuid: UUID, message: Component): CompletableFuture<Boolean> {
+    val player = Bukkit.getPlayer(uuid) ?: return CompletableFuture.completedFuture(false)
+    return player.foliaKick(message)
+}
+
+/**
  * 读取玩家当前位置快照。
  *
  * @return 当前位置副本；玩家离线或实体调度器失效时完成为 null。

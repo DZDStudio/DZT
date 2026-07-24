@@ -1,9 +1,19 @@
 package cn.tj.dzd.mc.dzt.title.command
 
+import cn.tj.dzd.mc.dzt.ban.BanApi
+import cn.tj.dzd.mc.dzt.ban.BanHistoryResult
+import cn.tj.dzd.mc.dzt.ban.BanIssueResult
+import cn.tj.dzd.mc.dzt.ban.BanService
+import cn.tj.dzd.mc.dzt.ban.BanText
+import cn.tj.dzd.mc.dzt.ban.PlayerBan
+import cn.tj.dzd.mc.dzt.ban.UnbanResult
+import cn.tj.dzd.mc.dzt.onebot.OneBotGroupApi
+import cn.tj.dzd.mc.dzt.onebot.OneBotGroupMessageReceipt
 import cn.tj.dzd.mc.dzt.title.PlayerTitle
 import cn.tj.dzd.mc.dzt.title.TitleApi
 import cn.tj.dzd.mc.dzt.title.TitleGrantResult
 import cn.tj.dzd.mc.dzt.title.TitleRevokeResult
+import cn.tj.dzd.mc.dzt.util.bukkitPlayerOrNull
 import cn.tj.dzd.mc.dzt.util.foliaRun
 import org.bukkit.entity.Player
 import taboolib.common.platform.ProxyCommandSender
@@ -14,13 +24,15 @@ import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.mainCommand
 import taboolib.common.platform.command.subCommand
 import taboolib.platform.util.onlinePlayers
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 /**
- * 称号管理命令。
+ * DZT 管理命令。
  *
  * 命令头默认仅向 OP 授权，每个执行器还会再次检查 [ProxyCommandSender.isOp]，
  * 避免普通玩家被权限插件授予节点后绕过“仅 OP”限制。
@@ -29,10 +41,10 @@ import java.util.UUID
     name = "dzt",
     aliases = ["dztadmin"],
     description = "DZT 管理命令",
-    usage = "/dzt title",
-    permission = "dzt.title.admin",
+    usage = "/dzt <title|ban|unban|banhistory|onebot>",
+    permission = "dzt.admin",
     // TabooLib 注册命令时会把该字段作为纯文本 Component 构造，不能使用 § 颜色码。
-    permissionMessage = "仅服务器 OP 可使用称号管理命令。",
+    permissionMessage = "仅服务器 OP 可使用 DZT 管理命令。",
     permissionDefault = PermissionDefault.OP,
     newParser = true,
 )
@@ -95,6 +107,92 @@ object TitleAdminCommand {
                 suggestionUncheck<ProxyCommandSender> { _, _ -> onlinePlayerNames() }
                 execute<ProxyCommandSender> { sender, context, _ ->
                     executeList(sender, context)
+                }
+            }
+        }
+    }
+
+    @CommandBody(description = "按小时封禁玩家")
+    val ban = subCommand {
+        dynamic("player") {
+            suggestionUncheck<ProxyCommandSender> { _, _ -> onlinePlayerNames() }
+            dynamic("hours") {
+                execute<ProxyCommandSender> { sender, context, _ ->
+                    executeBan(sender, context, "")
+                }
+                dynamic("reason", optional = true) {
+                    execute<ProxyCommandSender> { sender, context, argument ->
+                        executeBan(sender, context, argument)
+                    }
+                }
+            }
+        }
+    }
+
+    @CommandBody(description = "解除玩家当前封禁")
+    val unban = subCommand {
+        dynamic("player") {
+            suggestionUncheck<ProxyCommandSender> { _, _ -> onlinePlayerNames() }
+            execute<ProxyCommandSender> { sender, context, _ ->
+                executeUnban(sender, context)
+            }
+        }
+    }
+
+    @CommandBody(aliases = ["banrecords", "banlog"], description = "查询玩家封禁历史")
+    val banhistory = subCommand {
+        dynamic("player") {
+            suggestionUncheck<ProxyCommandSender> { _, _ -> onlinePlayerNames() }
+            execute<ProxyCommandSender> { sender, context, _ ->
+                executeBanHistory(sender, context, 1)
+            }
+            dynamic("page", optional = true) {
+                execute<ProxyCommandSender> { sender, context, argument ->
+                    val page = argument.toIntOrNull()
+                    if (page == null || page <= 0) {
+                        sender.sendLines("§c页码必须是大于 0 的整数。")
+                        return@execute
+                    }
+                    executeBanHistory(sender, context, page)
+                }
+            }
+        }
+    }
+
+    /**
+     * 向 DZT 固定 QQ 群发送纯文本消息。
+     *
+     * 用法：`/dzt onebot player <消息>` 向玩家交流群发送，
+     * `/dzt onebot management <消息>` 向管理群发送。末尾消息参数会接收所有剩余文本。
+     */
+    @CommandBody(aliases = ["qq"], description = "发送 OneBot QQ 群消息")
+    val onebot = subCommand {
+        execute<ProxyCommandSender> { sender, _, _ ->
+            if (sender.requireOp()) {
+                sender.sendOneBotHelp()
+            }
+        }
+
+        literal("player", "players", "community", description = "向玩家交流群发送消息") {
+            dynamic("message") {
+                execute<ProxyCommandSender> { sender, _, message ->
+                    sender.sendOneBotGroupMessage(
+                        message = message,
+                        groupLabel = "玩家交流群",
+                        send = OneBotGroupApi::sendPlayerGroupMessage,
+                    )
+                }
+            }
+        }
+
+        literal("management", "admin", "manage", description = "向管理群发送消息") {
+            dynamic("message") {
+                execute<ProxyCommandSender> { sender, _, message ->
+                    sender.sendOneBotGroupMessage(
+                        message = message,
+                        groupLabel = "管理群",
+                        send = OneBotGroupApi::sendManagementGroupMessage,
+                    )
                 }
             }
         }
@@ -163,6 +261,133 @@ object TitleAdminCommand {
         }
     }
 
+    private fun executeBan(
+        sender: ProxyCommandSender,
+        context: CommandContext<ProxyCommandSender>,
+        reason: String,
+    ) {
+        if (!sender.requireOp()) {
+            return
+        }
+        val target = sender.resolveTarget(context["player"]) ?: return
+        val hours = runCatching { BigDecimal(context["hours"].trim()) }.getOrNull()
+        if (hours == null || hours.signum() <= 0) {
+            sender.sendLines("§c封禁时长必须是大于 0 的小时数，可使用小数。")
+            return
+        }
+        val displayHours = hours.stripTrailingZeros().toPlainString()
+
+        sender.sendLines("§e正在封禁 ${target.label}……")
+        BanApi.ban(target.uuid, hours, reason).whenComplete { result, error ->
+            if (error != null) {
+                sender.sendLines("§c封禁 ${target.label} 失败：${error.readableMessage()}")
+                return@whenComplete
+            }
+
+            when (result) {
+                is BanIssueResult.Banned -> {
+                    sender.sendLines(
+                        "§a已封禁 ${target.label} ${displayHours} 小时，预计解封时间：" +
+                            "§f${BanText.formatTime(result.record.unbanAt)} §a北京时间。"
+                    )
+                    BanService.disconnectOnlinePlayer(result.record)
+                }
+
+                BanIssueResult.Failed,
+                null -> sender.sendLines("§c封禁 ${target.label} 失败。")
+            }
+        }
+    }
+
+    private fun executeUnban(
+        sender: ProxyCommandSender,
+        context: CommandContext<ProxyCommandSender>,
+    ) {
+        if (!sender.requireOp()) {
+            return
+        }
+        val target = sender.resolveTarget(context["player"]) ?: return
+
+        sender.sendLines("§e正在解除 ${target.label} 的封禁……")
+        BanApi.unban(target.uuid).whenComplete { result, error ->
+            if (error != null) {
+                sender.sendLines("§c解除 ${target.label} 的封禁失败：${error.readableMessage()}")
+                return@whenComplete
+            }
+
+            when (result) {
+                UnbanResult.UNBANNED -> sender.sendLines("§a已解除 ${target.label} 的当前封禁，历史记录已保留。")
+                UnbanResult.NOT_BANNED -> sender.sendLines("§e${target.label} 当前未被封禁。")
+                UnbanResult.FAILED,
+                null -> sender.sendLines("§c解除 ${target.label} 的封禁失败。")
+            }
+        }
+    }
+
+    private fun executeBanHistory(
+        sender: ProxyCommandSender,
+        context: CommandContext<ProxyCommandSender>,
+        requestedPage: Int,
+    ) {
+        if (!sender.requireOp()) {
+            return
+        }
+        val target = sender.resolveTarget(context["player"]) ?: return
+
+        BanApi.getBanHistory(target.uuid).whenComplete { result, error ->
+            if (error != null) {
+                sender.sendLines("§c读取 ${target.label} 的封禁历史失败：${error.readableMessage()}")
+                return@whenComplete
+            }
+            when (result) {
+                is BanHistoryResult.Available -> sender.sendBanHistory(target, result.records, requestedPage)
+                BanHistoryResult.Unavailable,
+                null -> sender.sendLines("§c读取 ${target.label} 的封禁历史失败。")
+            }
+        }
+    }
+
+    /**
+     * 调用固定 QQ 群 API 并将异步执行结果回显给命令发送者。
+     *
+     * 此方法绝不等待 Future 完成；完成回调中的 [sendLines] 会将玩家反馈调度到其 Folia
+     * 实体线程，控制台反馈则直接发送。
+     *
+     * @param message 要发送的纯文本消息。
+     * @param groupLabel 命令反馈使用的目标群名称。
+     * @param send 对应固定群的异步发送 API。
+     */
+    private fun ProxyCommandSender.sendOneBotGroupMessage(
+        message: String,
+        groupLabel: String,
+        send: (String) -> CompletableFuture<OneBotGroupMessageReceipt>,
+    ) {
+        if (!requireOp()) {
+            return
+        }
+        if (message.isBlank()) {
+            sendLines("§c消息不能为空。")
+            return
+        }
+
+        sendLines("§e正在向${groupLabel}发送消息……")
+        val future = runCatching { send(message) }.getOrElse { error ->
+            sendLines("§c发送至${groupLabel}失败：${error.readableMessage()}")
+            return
+        }
+        future.whenComplete { receipt, error ->
+            if (error != null) {
+                sendLines("§c发送至${groupLabel}失败：${error.readableMessage()}")
+                return@whenComplete
+            }
+            if (receipt == null) {
+                sendLines("§c发送至${groupLabel}失败：OneBot 未返回消息回执。")
+                return@whenComplete
+            }
+            sendLines("§a消息已发送至${groupLabel}（消息 ID：${receipt.messageId}）。")
+        }
+    }
+
     private fun executeList(
         sender: ProxyCommandSender,
         context: CommandContext<ProxyCommandSender>,
@@ -197,7 +422,7 @@ object TitleAdminCommand {
         if (isOp) {
             return true
         }
-        sendLines("§c仅服务器 OP 可使用称号管理命令。")
+        sendLines("§c仅服务器 OP 可使用 DZT 管理命令。")
         return false
     }
 
@@ -219,12 +444,53 @@ object TitleAdminCommand {
 
     private fun ProxyCommandSender.sendHelp() {
         sendLines(
-            "§6称号管理命令：",
+            "§6DZT 管理命令：",
             "§e/dzt title give <玩家名/UUID> <ID> \"§f<显示名>§e\" [介绍]",
             "§e/dzt title remove <玩家名/UUID> <ID>",
             "§e/dzt title list <玩家名/UUID>",
-            "§8显示名包含空格时请使用英文引号包围，颜色代码可使用 &6 形式。",
+            "§e/dzt ban <玩家名/UUID> <小时数，可为小数> [原因]",
+            "§e/dzt unban <玩家名/UUID>",
+            "§e/dzt banhistory <玩家名/UUID> [页码]",
+            "§e/dzt onebot player <消息>",
+            "§e/dzt onebot management <消息>",
+            "§8含空格的显示名或原因请使用英文引号包围；称号颜色代码可使用 &6 形式。",
         )
+    }
+
+    private fun ProxyCommandSender.sendOneBotHelp() {
+        sendLines(
+            "§6OneBot QQ 群消息命令：",
+            "§e/dzt onebot player <消息> §7- 发送至玩家交流群",
+            "§e/dzt onebot management <消息> §7- 发送至管理群",
+            "§8可使用 /dzt qq 作为 onebot 的别名；消息可直接包含空格。",
+        )
+    }
+
+    private fun ProxyCommandSender.sendBanHistory(
+        target: CommandTarget,
+        records: List<PlayerBan>,
+        requestedPage: Int,
+    ) {
+        if (records.isEmpty()) {
+            sendLines("§e${target.label} 暂无封禁历史。")
+            return
+        }
+
+        val pageCount = (records.size + BAN_HISTORY_PAGE_SIZE - 1) / BAN_HISTORY_PAGE_SIZE
+        if (requestedPage > pageCount) {
+            sendLines("§e${target.label} 的封禁历史只有 $pageCount 页。")
+            return
+        }
+
+        val fromIndex = (requestedPage - 1) * BAN_HISTORY_PAGE_SIZE
+        val currentTimeMillis = System.currentTimeMillis()
+        val lines = buildList {
+            add("§6${target.label} 的封禁历史（第 $requestedPage/$pageCount 页，共 ${records.size} 条）：")
+            records.subList(fromIndex, minOf(fromIndex + BAN_HISTORY_PAGE_SIZE, records.size)).forEach { record ->
+                add(record.toHistoryLine(currentTimeMillis))
+            }
+        }
+        sendLines(lines)
     }
 
     private fun ProxyCommandSender.sendLines(vararg lines: String) {
@@ -232,7 +498,7 @@ object TitleAdminCommand {
     }
 
     private fun ProxyCommandSender.sendLines(lines: List<String>) {
-        val player = castSafely<Player>()
+        val player = bukkitPlayerOrNull()
         if (player != null) {
             player.foliaRun {
                 lines.forEach { line -> sendMessage(line) }
@@ -249,6 +515,17 @@ object TitleAdminCommand {
             .ifBlank { "暂无介绍" }
         val time = beijingTimeFormatter.format(Instant.ofEpochMilli(grantedAt))
         return "$equippedMarker§f$id §7- §r$displayName §8| $descriptionText | $time 北京时间"
+    }
+
+    private fun PlayerBan.toHistoryLine(currentTimeMillis: Long): String {
+        val status = when {
+            isEffectiveAt(currentTimeMillis) -> "§c生效中"
+            !active && releasedAt > 0L -> "§a已提前解除：${BanText.formatTime(releasedAt)}"
+            !active -> "§a已提前解除"
+            else -> "§7已自然到期"
+        }
+        return "§8#${recordId.toString().take(8)} §7封禁：${BanText.formatTime(bannedAt)} " +
+            "§7预计解封：${BanText.formatTime(unbanAt)} §7状态：$status §8原因：§f$reason"
     }
 
     private fun Throwable.readableMessage(): String {
@@ -272,4 +549,6 @@ object TitleAdminCommand {
         }
         return chars.concatToString()
     }
+
+    private const val BAN_HISTORY_PAGE_SIZE = 10
 }

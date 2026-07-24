@@ -1,6 +1,7 @@
 package cn.tj.dzd.mc.dzt.menu.command
 
 import cn.tj.dzd.mc.dzt.menu.ui.Menu
+import cn.tj.dzd.mc.dzt.util.bukkitPlayerOrNull
 import org.bukkit.entity.Player
 import taboolib.common.platform.ProxyCommandSender
 import taboolib.common.platform.command.CommandBody
@@ -28,7 +29,7 @@ object MenuCommand {
     @CommandBody
     val main = mainCommand {
         execute<ProxyCommandSender> { sender, _, _ ->
-            val player = sender.castSafely<Player>()
+            val player = sender.bukkitPlayerOrNull()
             if (player == null) {
                 sender.sendMessage("§c该命令只能由玩家执行。")
                 return@execute
