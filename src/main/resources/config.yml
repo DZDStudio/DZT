@@ -18,3 +18,15 @@ redis:
 
 preferred-route:
   ip: 127.0.0.1
+
+## OneBot HTTP 连接信息同时供群准入和 OneBotGroupApi 的固定群消息接口使用。
+## group-admission.enable 只控制玩家准入，不影响 API 发消息。
+onebot:
+  group-admission:
+    enable: true
+    api-server: "http://127.0.0.1:3000"
+    access-token: ""
+    group-id: 747121127
+    timeout-millis: 5000
+    deny-message: "请先加入DZD玩家交流群[QQ:747121127]，并将群昵称设置为包含你的游戏名后再进入服务器。"
+    unavailable-message: "身份验证服务异常，请联系管理人员。"

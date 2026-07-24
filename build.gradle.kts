@@ -40,7 +40,7 @@ taboolib {
     }
     version {
         taboolib = "6.3.0-c6f096d"
-        coroutines = "1.8.1"
+        coroutines = "1.9.0"
     }
 }
 
@@ -68,13 +68,19 @@ dependencies {
     compileOnly("org.geysermc.geyser:api:2.9.5-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
 
-    taboo("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    taboo("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     taboo("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.9.0") { isTransitive = false }
     compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0") { isTransitive = false }
 
+    taboo("love.forte.simbot:simbot-core:4.15.0")
+    taboo("love.forte.simbot.component:simbot-component-onebot-v11-core:1.9.0")
+    taboo("io.ktor:ktor-client-cio:2.3.12")
+
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    // ProxyCommandSender 的 Folia 安全转换测试需要解析 Bukkit Player 返回类型。
+    testImplementation("dev.folia:folia-api:[26.1.2.build,)")
 }
 
 tasks.withType<JavaCompile> {
