@@ -27,8 +27,8 @@ import kotlin.math.sqrt
  * 飞行速度反作弊检测系统。
  *
  * 定期检测处于飞行状态的玩家移动速度，记录违规行为，并在达到阈值时采取相应措施：
- * - 3 分钟内超过 20 次：向管理群发送提醒消息
- * - 3 分钟内超过 30 次：自动封禁 24 小时
+ * - 3 分钟内超过 15 次：向管理群发送提醒消息
+ * - 3 分钟内超过 20 次：自动封禁 24 小时
  *
  * 检测标准：
  * - 水平速度（X-Z 平面）超过 1.1 方块/tick
@@ -47,8 +47,8 @@ object FlightSpeedAntiCheat {
     private const val HORIZONTAL_SPEED_THRESHOLD = 1.1
     private const val VERTICAL_SPEED_THRESHOLD = 0.4
     private const val VIOLATION_WINDOW_MILLIS = 3L * 60L * 1000L // 3 分钟
-    private const val WARNING_THRESHOLD = 20
-    private const val BAN_THRESHOLD = 30
+    private const val WARNING_THRESHOLD = 15
+    private const val BAN_THRESHOLD = 20
     private const val BAN_HOURS = 24L
 
     /**
@@ -80,7 +80,7 @@ object FlightSpeedAntiCheat {
      *
      * @property lastCheckPoint 上一个检测点。
      * @property violations 违规记录列表。
-     * @property warningNotified 是否已发送 20 次警告。
+     * @property warningNotified 是否已发送 15 次警告。
      * @property banned 是否已封禁。
      */
     private data class PlayerViolationData(
@@ -225,7 +225,7 @@ object FlightSpeedAntiCheat {
     }
 
     /**
-     * 处理 20 次警告。
+     * 处理 15 次警告。
      */
     private fun handleWarning(player: Player, count: Int, data: PlayerViolationData) {
         data.warningNotified = true
@@ -247,7 +247,7 @@ object FlightSpeedAntiCheat {
     }
 
     /**
-     * 处理 30 次封禁。
+     * 处理 20 次封禁。
      */
     private fun handleBan(player: Player, data: PlayerViolationData) {
         data.banned = true
