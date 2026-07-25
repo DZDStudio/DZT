@@ -136,6 +136,7 @@ class PlatformBoundaryTest {
         )
 
         private val ALLOWED_NATIVE_PLAYER_FLIGHT_ACCESSES = setOf(
+            NativePlayerFlightAccess("cn/tj/dzd/mc/dzt/flight/FlightSpeedAntiCheat.kt", "isFlying"),
             NativePlayerFlightAccess("cn/tj/dzd/mc/dzt/flight/FlightService.kt", "allowFlight"),
             NativePlayerFlightAccess("cn/tj/dzd/mc/dzt/flight/FlightService.kt", "isFlying"),
         )
