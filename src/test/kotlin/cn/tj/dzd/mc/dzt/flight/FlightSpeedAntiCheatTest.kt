@@ -74,20 +74,20 @@ class FlightSpeedAntiCheatTest {
     }
 
     @Test
-    fun `20次违规应触发警告阈值`() {
-        val warningThreshold = 20
-        val violations = (1..20).toList()
+    fun `10次违规应触发警告阈值`() {
+        val warningThreshold = 10
+        val violations = (1..10).toList()
         
         assertTrue(violations.size >= warningThreshold,
-            "20 次违规应达到警告阈值")
+            "10 次违规应达到警告阈值")
     }
 
     @Test
-    fun `30次违规应触发封禁阈值`() {
-        val banThreshold = 30
-        val violations = (1..30).toList()
+    fun `15次违规应触发封禁阈值`() {
+        val banThreshold = 15
+        val violations = (1..15).toList()
         
         assertTrue(violations.size >= banThreshold,
-            "30 次违规应达到封禁阈值")
+            "15 次违规应达到封禁阈值")
     }
 }
