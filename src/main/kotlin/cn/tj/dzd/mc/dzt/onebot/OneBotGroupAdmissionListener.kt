@@ -91,8 +91,9 @@ internal object OneBotGroupAdmissionListener {
      * 解析应参与群名片匹配的玩家名称。
      *
      * Floodgate 在处理 Bedrock 登录握手时会登记 [org.geysermc.floodgate.api.player.FloodgatePlayer]。
-     * 如果该信息在预登录阶段已可读取，优先使用其 `username`：它是不带 Floodgate 前缀、未被
-     * Java 用户名规则替换或截断的真实基岩昵称，也能正确覆盖已绑定的基岩账号。
+     * 如果该信息在预登录阶段已可读取，使用其 `correctUsername`：未绑定玩家得到带 Floodgate
+     * 前缀的服务端名称，global linking 的玩家则得到绑定的 Java 账户名。这避免将基岩 Gamertag
+     * 错误用于已绑定玩家的群名片检索。
      *
      * 某些 Floodgate 版本或异常登录流程中，该登记可能尚不可读取；此时对 UUID 格式可识别的
      * 未绑定基岩账号回退为从服务器名称移除第一个字符。Java 玩家始终保留完整服务器名称。
@@ -105,11 +106,15 @@ internal object OneBotGroupAdmissionListener {
         playerId: UUID,
         serverPlayerName: String,
     ): AdmissionPlayerName {
-        val rawBedrockName = runCatching {
-            floodgateApi.getPlayer(playerId)?.username
-        }.getOrNull()?.takeIf(String::isNotBlank)
-        if (rawBedrockName != null) {
-            return AdmissionPlayerName(rawBedrockName, null)
+        val floodgatePlayer = runCatching {
+            floodgateApi.getPlayer(playerId)
+        }.getOrNull()
+        if (floodgatePlayer != null) {
+            val matchingName = QqGroupAdmissionPolicy.floodgateMatchingPlayerName(
+                correctUsername = floodgatePlayer.correctUsername,
+                linked = floodgatePlayer.isLinked,
+            )
+            return AdmissionPlayerName(matchingName.orEmpty(), null)
         }
 
         return AdmissionPlayerName(

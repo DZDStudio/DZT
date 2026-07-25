@@ -68,6 +68,22 @@ class QqGroupAdmissionServiceTest {
     }
 
     @Test
+    fun `global linked Bedrock players match their linked Java account name`() {
+        assertEquals(
+            "LinkedJavaName",
+            QqGroupAdmissionPolicy.floodgateMatchingPlayerName("LinkedJavaName", linked = true),
+        )
+    }
+
+    @Test
+    fun `unlinked Floodgate players remove their server name prefix`() {
+        assertEquals(
+            "BedrockName",
+            QqGroupAdmissionPolicy.floodgateMatchingPlayerName("#BedrockName", linked = false),
+        )
+    }
+
+    @Test
     fun `empty effective Bedrock name is denied without querying OneBot`() {
         val directory = FakeGroupMemberDirectory(
             CompletableFuture.completedFuture(listOf("任意群名片")),

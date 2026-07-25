@@ -170,6 +170,22 @@ internal object QqGroupAdmissionPolicy {
     }
 
     /**
+     * 得到 Floodgate 玩家用于群名片匹配的名称。
+     *
+     * 调用方应传入 `FloodgatePlayer.correctUsername`。Floodgate 对未绑定账号会返回带配置前缀的
+     * 服务端名称，因此遵循准入规则移除其首字符；global linking 的已绑定账号则返回 Java 账户名，
+     * 该名称没有 Floodgate 前缀，必须完整保留。
+     *
+     * @param correctUsername Floodgate 解析出的服务端正确名称。
+     * @param linked 玩家是否已通过 Floodgate linking 绑定 Java 账户。
+     * @return 可用于群名片匹配的名称；为空或仅空白字符时返回 null。
+     */
+    fun floodgateMatchingPlayerName(correctUsername: String, linked: Boolean): String? {
+        val bedrockLeadingCharacter = correctUsername.take(1).takeIf { !linked }
+        return matchPlayerName(correctUsername, bedrockLeadingCharacter)
+    }
+
+    /**
      * 判断群名片中是否有任意一项包含玩家名称。
      *
      * 匹配大小写敏感，且只检查 OneBot 的群名片（`card`）而不回退到 QQ 昵称。
