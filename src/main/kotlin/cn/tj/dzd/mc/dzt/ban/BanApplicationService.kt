@@ -21,7 +21,8 @@ class BanApplicationService(
     /**
      * 按小时封禁玩家。
      *
-     * 每次调用都会新增一条历史记录；若玩家已有未到期封禁，旧记录会标记为已提前解除，新记录立即生效。
+     * 每次调用都会新增一条历史记录；若玩家已有同类型且未到期的封禁，旧记录会标记为已提前解除，
+     * 新记录立即生效。此重载保留历史调用语义，默认创建 [BanType.BAN] 类型的服务器封禁。
      *
      * @param playerId 被封禁玩家 UUID。
      * @param hours 封禁时长，单位为小时，必须大于 0。
@@ -30,7 +31,21 @@ class BanApplicationService(
      * @throws IllegalArgumentException 时长或原因不合法时抛出。
      */
     fun ban(playerId: UUID, hours: Long, reason: String): BanIssueResult {
-        return ban(playerId, BigDecimal.valueOf(hours), reason)
+        return ban(playerId, BigDecimal.valueOf(hours), reason, BanType.BAN)
+    }
+
+    /**
+     * 按小时创建指定类型的封禁。
+     *
+     * @param playerId 被封禁玩家 UUID。
+     * @param hours 封禁时长，单位为小时，必须大于 0。
+     * @param reason 封禁原因；空白原因会保存为默认说明。
+     * @param type 封禁作用域类型。
+     * @return 封禁操作结果。
+     * @throws IllegalArgumentException 时长或原因不合法时抛出。
+     */
+    fun ban(playerId: UUID, hours: Long, reason: String, type: BanType): BanIssueResult {
+        return ban(playerId, BigDecimal.valueOf(hours), reason, type)
     }
 
     /**
@@ -45,6 +60,22 @@ class BanApplicationService(
      * @throws IllegalArgumentException 时长或原因不合法时抛出。
      */
     fun ban(playerId: UUID, hours: BigDecimal, reason: String): BanIssueResult {
+        return ban(playerId, hours, reason, BanType.BAN)
+    }
+
+    /**
+     * 按小时创建指定类型的封禁，支持小数时长。
+     *
+     * 不能精确表示为整数毫秒的小数时长会向上取整，确保实际封禁时间不会短于管理员指定的时长。
+     *
+     * @param playerId 被封禁玩家 UUID。
+     * @param hours 封禁时长，单位为小时，可使用小数，必须大于 0。
+     * @param reason 封禁原因；空白原因会保存为默认说明。
+     * @param type 封禁作用域类型。
+     * @return 封禁操作结果。
+     * @throws IllegalArgumentException 时长或原因不合法时抛出。
+     */
+    fun ban(playerId: UUID, hours: BigDecimal, reason: String, type: BanType): BanIssueResult {
         val now = currentTimeMillis()
         val record = PlayerBan(
             recordId = recordIdGenerator(),
@@ -54,6 +85,7 @@ class BanApplicationService(
             reason = normalizeReason(reason),
             active = true,
             releasedAt = NOT_RELEASED,
+            type = type,
         )
         return when (repository.createReplacingActive(record)) {
             is RepositoryResult.Success -> BanIssueResult.Banned(record)
@@ -62,7 +94,7 @@ class BanApplicationService(
     }
 
     /**
-     * 提前解除玩家当前有效封禁。
+     * 提前解除玩家当前有效的服务器封禁。
      *
      * 历史记录会保留原定 [PlayerBan.unbanAt]，并记录本次提前解除时间。
      *
@@ -70,20 +102,44 @@ class BanApplicationService(
      * @return 解除结果。
      */
     fun unban(playerId: UUID): UnbanResult {
-        return when (val result = repository.releaseActive(playerId, currentTimeMillis())) {
+        return unban(playerId, BanType.BAN)
+    }
+
+    /**
+     * 提前解除玩家指定类型的当前有效封禁。
+     *
+     * 历史记录会保留原定 [PlayerBan.unbanAt]，并记录本次提前解除时间。
+     *
+     * @param playerId 被解除玩家 UUID。
+     * @param type 需要解除的封禁类型。
+     * @return 解封操作结果。
+     */
+    fun unban(playerId: UUID, type: BanType): UnbanResult {
+        return when (val result = repository.releaseActive(playerId, type, currentTimeMillis())) {
             is RepositoryResult.Success -> if (result.value) UnbanResult.UNBANNED else UnbanResult.NOT_BANNED
             RepositoryResult.Failure -> UnbanResult.FAILED
         }
     }
 
     /**
-     * 查询玩家当前有效的封禁记录。
+     * 查询玩家当前有效的服务器封禁记录。
      *
      * @param playerId 玩家 UUID。
      * @return 当前封禁状态；基础设施异常会返回 [BanLookupResult.Unavailable]。
      */
     fun getActiveBan(playerId: UUID): BanLookupResult {
-        return when (val result = repository.findActive(playerId, currentTimeMillis())) {
+        return getActiveBan(playerId, BanType.BAN)
+    }
+
+    /**
+     * 查询玩家指定类型的当前有效封禁记录。
+     *
+     * @param playerId 玩家 UUID。
+     * @param type 需要查询的封禁类型。
+     * @return 当前封禁状态；基础设施异常会返回 [BanLookupResult.Unavailable]。
+     */
+    fun getActiveBan(playerId: UUID, type: BanType): BanLookupResult {
+        return when (val result = repository.findActive(playerId, type, currentTimeMillis())) {
             is RepositoryResult.Success -> result.value?.let(BanLookupResult::Active) ?: BanLookupResult.NotBanned
             RepositoryResult.Failure -> BanLookupResult.Unavailable
         }

@@ -38,6 +38,11 @@ data class PlayerBanRecord(
     val reason: String,
     /** 手动解除或被新封禁替换时的 Unix 毫秒时间戳；0 表示未提前解除。 */
     var releasedAt: Long,
+    /**
+     * 封禁作用域。可空是为了兼容新增 `type` 列之前的历史记录；读取空值时领域层会按 `ban` 处理。
+     */
+    @param:Length(16)
+    val type: String?,
 )
 
 /**
@@ -56,4 +61,5 @@ object PlayerBanColumns {
     const val UNBAN_AT = "unban_at"
     const val REASON = "reason"
     const val RELEASED_AT = "released_at"
+    const val TYPE = "type"
 }

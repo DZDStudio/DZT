@@ -54,7 +54,19 @@ internal object BanText {
             .trim()
             .ifBlank { ban.playerId.toString() }
         val displayHours = hours.stripTrailingZeros().toPlainString()
-        return "[封禁公示] 玩家${label}因${ban.reason}封禁${displayHours}小时。"
+        return when {
+            ban.type.blocksServerEntry -> {
+                "[封禁公示] 玩家${label}因${ban.reason}封禁${displayHours}小时。"
+            }
+
+            ban.type.blocksFlight -> {
+                "[飞行封禁公示] 玩家${label}因${ban.reason}禁止飞行${displayHours}小时。"
+            }
+
+            else -> {
+                "[封禁公示] 玩家${label}因${ban.reason}受到${ban.type.value}类型封禁${displayHours}小时。"
+            }
+        }
     }
 
     private val BEIJING_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter

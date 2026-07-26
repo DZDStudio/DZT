@@ -1,5 +1,9 @@
 package cn.tj.dzd.mc.dzt.flight
 
+import cn.tj.dzd.mc.dzt.ban.BanApi
+import cn.tj.dzd.mc.dzt.ban.BanLookupResult
+import cn.tj.dzd.mc.dzt.ban.BanType
+import cn.tj.dzd.mc.dzt.ban.PlayerBan
 import cn.tj.dzd.mc.dzt.core.RepositoryResult
 import cn.tj.dzd.mc.dzt.data.repository.PersistentFlightRepository
 import cn.tj.dzd.mc.dzt.economy.EconomyWithdrawalResult
@@ -56,6 +60,9 @@ enum class FlightToggleResult {
     /** 该玩家已有一次飞行开关变更尚未结束。 */
     IN_PROGRESS,
 
+    /** 玩家当前存在有效的飞行封禁，不能开启飞行。 */
+    RESTRICTED,
+
     /** 持久化操作失败，开关未改变。 */
     FAILED,
 }
@@ -89,6 +96,12 @@ object FlightService {
         val forcedDisableToken: Long? = null,
     )
 
+    private enum class FlightBanLookup {
+        CLEAR,
+        RESTRICTED,
+        UNAVAILABLE,
+    }
+
     private val repository: FlightRepository = PersistentFlightRepository
     private val settingLifecycleLock = Any()
     private val activeSessions = ConcurrentHashMap<UUID, ActiveSession>()
@@ -98,6 +111,7 @@ object FlightService {
     private val chargeInProgress = ConcurrentHashMap.newKeySet<UUID>()
     private val chargeLedger = FlightChargeLedger()
     private val settingStateGuard = FlightSettingStateGuard()
+    private val flightBans = ConcurrentHashMap<UUID, PlayerBan>()
     private val sessionTokenSequence = AtomicLong()
 
     @Volatile
@@ -121,6 +135,7 @@ object FlightService {
             delay = FLIGHT_CHECK_PERIOD_TICKS,
             period = FLIGHT_CHECK_PERIOD_TICKS,
         ) {
+            reconcileExpiredFlightBans()
             checkFlyingPlayers()
         }
     }
@@ -141,6 +156,7 @@ object FlightService {
         chargeInProgress.clear()
         chargeLedger.clear()
         settingStateGuard.clear()
+        flightBans.clear()
     }
 
     /**
@@ -158,6 +174,23 @@ object FlightService {
         }
         val session = activeSession(player)
             ?: return CompletableFuture.completedFuture(FlightSettingState.Unavailable)
+        return refreshFlightBan(session).thenCompose { flightBan ->
+            when (flightBan) {
+                FlightBanLookup.RESTRICTED -> {
+                    CompletableFuture.completedFuture(FlightSettingState.Available(false))
+                }
+
+                FlightBanLookup.UNAVAILABLE -> {
+                    CompletableFuture.completedFuture(FlightSettingState.Unavailable)
+                }
+
+                FlightBanLookup.CLEAR -> getSettingWithoutFlightBan(session)
+            }
+        }
+    }
+
+    /** 在确认没有飞行封禁后读取当前会话的飞行设置。 */
+    private fun getSettingWithoutFlightBan(session: SessionKey): CompletableFuture<FlightSettingState> {
         if (settingStateGuard.isForcedDisabled(session.playerId)) {
             return CompletableFuture.completedFuture(FlightSettingState.Available(false))
         }
@@ -187,6 +220,19 @@ object FlightService {
             return CompletableFuture.completedFuture(FlightToggleResult.IN_PROGRESS)
         }
 
+        return refreshFlightBan(session).thenCompose { flightBan ->
+            when (flightBan) {
+                FlightBanLookup.RESTRICTED -> CompletableFuture.completedFuture(FlightToggleResult.RESTRICTED)
+                FlightBanLookup.UNAVAILABLE -> CompletableFuture.completedFuture(FlightToggleResult.FAILED)
+                FlightBanLookup.CLEAR -> toggleWithoutFlightBan(playerId)
+            }
+        }.whenComplete { _, _ ->
+            toggleRequests.remove(playerId)
+        }
+    }
+
+    /** 在确认没有飞行封禁后执行飞行开关持久化。 */
+    private fun toggleWithoutFlightBan(playerId: UUID): CompletableFuture<FlightToggleResult> {
         return submitSettingOperation(playerId, SettingOperationType.MUTATION) {
             val forcedDisableToken = settingStateGuard.forcedDisableToken(playerId)
             val current = if (forcedDisableToken != null) {
@@ -228,9 +274,39 @@ object FlightService {
                 publishPreference(playerId, enabled)
             }
             mutation.result
-        }.whenComplete { _, _ ->
-            toggleRequests.remove(playerId)
         }
+    }
+
+    /**
+     * 对当前在线会话即时应用一条已生效的 `fly` 封禁。
+     *
+     * 此操作只撤销运行时飞行能力，不修改玩家持久化的飞行开关；解封或到期后可恢复原有设置。
+     *
+     * @param ban 已成功持久化且类型为 [BanType.FLY] 的封禁记录。
+     * @return 玩家在线且已完成飞行能力更新时为 `true`；玩家离线或记录无效时为 `false`。
+     */
+    fun applyFlightBan(ban: PlayerBan): CompletableFuture<Boolean> {
+        if (!ban.type.blocksFlight || !ban.isEffectiveAt(System.currentTimeMillis())) {
+            return CompletableFuture.completedFuture(false)
+        }
+        cacheFlightBan(ban)
+        val active = activeSessions[ban.playerId] ?: return CompletableFuture.completedFuture(false)
+        return applyPreferenceToSession(active.key)
+    }
+
+    /**
+     * 清除当前进程中缓存的飞行封禁，并重新应用持久化的飞行开关。
+     *
+     * 调用方应仅在指定 `fly` 类型封禁已成功解除后调用。
+     *
+     * @param playerId 被解除飞行封禁的玩家 UUID。
+     * @return 在线会话成功刷新飞行设置时为 `true`；玩家离线或存储不可用时为 `false`。
+     */
+    fun clearFlightBan(playerId: UUID): CompletableFuture<Boolean> {
+        flightBans.remove(playerId)
+        val active = activeSessions[playerId] ?: return CompletableFuture.completedFuture(false)
+        return readPreference(active.key, failClosedOnFailure = true)
+            .thenApply { it is FlightSettingState.Available }
     }
 
     /** 玩家加入后创建新会话，并异步应用数据库中的飞行开关。 */
@@ -284,6 +360,7 @@ object FlightService {
             applyPreferenceToSession(session)
         }
         refreshPreference(session)
+        refreshFlightBan(session)
     }
 
     private fun activeSession(player: Player): SessionKey? {
@@ -336,6 +413,9 @@ object FlightService {
         if (settingStateGuard.isForcedDisabled(session.playerId)) {
             return FlightSettingState.Available(false)
         }
+        if (hasActiveFlightBan(session.playerId)) {
+            return FlightSettingState.Available(false)
+        }
         return preferences[session]?.let(FlightSettingState::Available)
             ?: FlightSettingState.Unavailable
     }
@@ -357,6 +437,7 @@ object FlightService {
             if (activeSession(this) == session) {
                 val enabled = preferences[session] == true &&
                     !settingStateGuard.isForcedDisabled(session.playerId)
+                    && !hasActiveFlightBan(session.playerId)
                 applyManagedFlightPreference(enabled)
             }
         }
@@ -372,6 +453,7 @@ object FlightService {
                 activeSession(this) == session &&
                 preferences[session] == true &&
                 !settingStateGuard.isForcedDisabled(session.playerId)
+                && !hasActiveFlightBan(session.playerId)
             ) {
                 applyManagedFlightPreference(true)
             }
@@ -381,12 +463,20 @@ object FlightService {
     private fun checkFlyingPlayers() {
         onlinePlayers.forEach { player ->
             val session = activeSession(player) ?: return@forEach
-            if (preferences[session] != true || settingStateGuard.isForcedDisabled(session.playerId)) {
+            if (
+                preferences[session] != true ||
+                settingStateGuard.isForcedDisabled(session.playerId) ||
+                hasActiveFlightBan(session.playerId)
+            ) {
                 return@forEach
             }
 
             player.foliaRun {
-                if (activeSession(this) != session || settingStateGuard.isForcedDisabled(session.playerId)) {
+                if (
+                    activeSession(this) != session ||
+                    settingStateGuard.isForcedDisabled(session.playerId) ||
+                    hasActiveFlightBan(session.playerId)
+                ) {
                     return@foliaRun
                 }
                 val shouldCharge = FlightPolicy.shouldChargeForFlightCheck(
@@ -497,6 +587,64 @@ object FlightService {
             if (activeSession(this) == active.key) {
                 applyManagedFlightPreference(false)
                 sendDZTError(message)
+            }
+        }
+    }
+
+    /** 异步刷新玩家的 `fly` 类型封禁，并将结果写入当前进程的运行时缓存。 */
+    private fun refreshFlightBan(session: SessionKey): CompletableFuture<FlightBanLookup> {
+        val refreshStartedAt = System.currentTimeMillis()
+        return BanApi.getActiveBan(session.playerId, BanType.FLY).handle { lookup, error ->
+            when {
+                error != null || lookup == null || lookup is BanLookupResult.Unavailable -> {
+                    FlightBanLookup.UNAVAILABLE
+                }
+
+                lookup is BanLookupResult.Active -> {
+                    applyFlightBan(lookup.record)
+                    FlightBanLookup.RESTRICTED
+                }
+
+                lookup is BanLookupResult.NotBanned -> {
+                    val cached = flightBans.computeIfPresent(session.playerId) { _, current ->
+                        current.takeIf { it.bannedAt >= refreshStartedAt }
+                    }
+                    if (cached?.isEffectiveAt(System.currentTimeMillis()) == true) {
+                        FlightBanLookup.RESTRICTED
+                    } else {
+                        FlightBanLookup.CLEAR
+                    }
+                }
+
+                else -> FlightBanLookup.UNAVAILABLE
+            }
+        }
+    }
+
+    /** 判断当前进程缓存中是否存在尚未到期的飞行封禁。 */
+    private fun hasActiveFlightBan(playerId: UUID): Boolean {
+        return flightBans[playerId]?.isEffectiveAt(System.currentTimeMillis()) == true
+    }
+
+    /** 缓存同一玩家较新的飞行封禁，防止旧异步查询结果覆盖新记录。 */
+    private fun cacheFlightBan(ban: PlayerBan) {
+        flightBans.compute(ban.playerId) { _, current ->
+            when {
+                current == null -> ban
+                ban.bannedAt > current.bannedAt -> ban
+                ban.bannedAt < current.bannedAt -> current
+                ban.recordId.toString() >= current.recordId.toString() -> ban
+                else -> current
+            }
+        }
+    }
+
+    /** 到期后移除飞行封禁缓存，并为仍在线的玩家恢复其持久化飞行设置。 */
+    private fun reconcileExpiredFlightBans() {
+        val now = System.currentTimeMillis()
+        flightBans.forEach { (playerId, ban) ->
+            if (!ban.isEffectiveAt(now) && flightBans.remove(playerId, ban)) {
+                activeSessions[playerId]?.key?.let(::refreshPreference)
             }
         }
     }

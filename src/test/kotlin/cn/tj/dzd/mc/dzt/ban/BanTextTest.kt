@@ -25,4 +25,23 @@ class BanTextTest {
             BanText.playerGroupAnnouncement("HaiPaya", ban, BigDecimal("0.100")),
         )
     }
+
+    @Test
+    fun `flight ban announcement identifies the restricted capability`() {
+        val ban = PlayerBan(
+            recordId = UUID.fromString("00000000-0000-0000-0000-000000000202"),
+            playerId = UUID.fromString("00000000-0000-0000-0000-000000000102"),
+            bannedAt = 1_000L,
+            unbanAt = 86_401_000L,
+            reason = "飞行速度异常",
+            active = true,
+            releasedAt = 0L,
+            type = BanType.FLY,
+        )
+
+        assertEquals(
+            "[飞行封禁公示] 玩家HaiPaya因飞行速度异常禁止飞行24小时。",
+            BanText.playerGroupAnnouncement("HaiPaya", ban, BigDecimal("24.0")),
+        )
+    }
 }
