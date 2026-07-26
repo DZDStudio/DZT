@@ -126,6 +126,7 @@ object FlightUI {
                         FlightToggleResult.ENABLED -> sendDZTSuccess("飞行功能已开启。")
                         FlightToggleResult.DISABLED -> sendDZTSuccess("飞行功能已关闭。")
                         FlightToggleResult.IN_PROGRESS -> sendDZTTip("飞行设置正在处理中，请稍候。")
+                        FlightToggleResult.RESTRICTED -> sendDZTError("飞行功能已被封禁，暂时无法开启。")
                         FlightToggleResult.FAILED,
                         null,
                         -> sendDZTError("更改飞行设置失败。")

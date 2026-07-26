@@ -1,12 +1,14 @@
 package cn.tj.dzd.mc.dzt.data.repository
 
 import cn.tj.dzd.mc.dzt.ban.BanRepository
+import cn.tj.dzd.mc.dzt.ban.BanType
 import cn.tj.dzd.mc.dzt.ban.PlayerBan
 import cn.tj.dzd.mc.dzt.core.RepositoryResult
 import cn.tj.dzd.mc.dzt.data.DatabaseGuard
 import cn.tj.dzd.mc.dzt.data.table.PlayerBanColumns
 import cn.tj.dzd.mc.dzt.data.table.PlayerBanRecord
 import cn.tj.dzd.mc.dzt.data.table.playerBanRecordMapper
+import taboolib.module.database.Filter
 import java.util.UUID
 
 /**
@@ -26,6 +28,7 @@ object PersistentBanRepository : BanRepository {
                         PlayerBanColumns.PLAYER_ID eq record.playerId.toString()
                         PlayerBanColumns.ACTIVE eq true
                         PlayerBanColumns.UNBAN_AT gt record.bannedAt
+                        matchType(record.type)
                     }
                 }
                 insert(record.toRecord())
@@ -34,7 +37,11 @@ object PersistentBanRepository : BanRepository {
         }
     }
 
-    override fun releaseActive(playerId: UUID, releasedAt: Long): RepositoryResult<Boolean> {
+    override fun releaseActive(
+        playerId: UUID,
+        type: BanType,
+        releasedAt: Long,
+    ): RepositoryResult<Boolean> {
         return DatabaseGuard.execute("解除玩家封禁", RepositoryResult.Failure) {
             val changed = playerBanRecordMapper.rawUpdate {
                 set(PlayerBanColumns.ACTIVE, false)
@@ -43,16 +50,21 @@ object PersistentBanRepository : BanRepository {
                     PlayerBanColumns.PLAYER_ID eq playerId.toString()
                     PlayerBanColumns.ACTIVE eq true
                     PlayerBanColumns.UNBAN_AT gt releasedAt
+                    matchType(type)
                 }
             }
             RepositoryResult.Success(changed > 0)
         }
     }
 
-    override fun findActive(playerId: UUID, currentTimeMillis: Long): RepositoryResult<PlayerBan?> {
+    override fun findActive(
+        playerId: UUID,
+        type: BanType,
+        currentTimeMillis: Long,
+    ): RepositoryResult<PlayerBan?> {
         return DatabaseGuard.execute("读取玩家封禁状态", RepositoryResult.Failure) {
             val active = findRecords(playerId)
-                .filter { it.isEffectiveAt(currentTimeMillis) }
+                .filter { it.type == type && it.isEffectiveAt(currentTimeMillis) }
                 .maxWithOrNull(compareBy<PlayerBan>(PlayerBan::bannedAt).thenBy { it.recordId.toString() })
             RepositoryResult.Success(active)
         }
@@ -79,6 +91,7 @@ object PersistentBanRepository : BanRepository {
             unbanAt = unbanAt,
             reason = reason,
             releasedAt = releasedAt,
+            type = type.value,
         )
     }
 
@@ -91,6 +104,19 @@ object PersistentBanRepository : BanRepository {
             reason = reason,
             active = active,
             releasedAt = releasedAt,
+            type = BanType.fromStored(type),
         )
+    }
+
+    /** 将数据库列中的空历史类型与当前 `ban` 类型一起匹配。 */
+    private fun Filter.matchType(type: BanType) {
+        if (type == BanType.BAN) {
+            or {
+                PlayerBanColumns.TYPE eq BanType.BAN.value
+                PlayerBanColumns.TYPE eq null
+            }
+        } else {
+            PlayerBanColumns.TYPE eq type.value
+        }
     }
 }

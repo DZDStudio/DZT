@@ -35,6 +35,19 @@ internal object BanService {
     }
 
     /**
+     * 同步执行指定类型的封禁用例。
+     *
+     * @param playerId 被封禁玩家 UUID。
+     * @param hours 封禁时长，单位为小时。
+     * @param reason 封禁原因。
+     * @param type 封禁作用域类型。
+     * @return 封禁结果。
+     */
+    fun ban(playerId: UUID, hours: Long, reason: String, type: BanType): BanIssueResult {
+        return application.ban(playerId, hours, reason, type)
+    }
+
+    /**
      * 同步执行支持小数时长的封禁用例。
      *
      * @param playerId 被封禁玩家 UUID。
@@ -44,6 +57,19 @@ internal object BanService {
      */
     fun ban(playerId: UUID, hours: BigDecimal, reason: String): BanIssueResult {
         return application.ban(playerId, hours, reason)
+    }
+
+    /**
+     * 同步执行支持小数时长的指定类型封禁用例。
+     *
+     * @param playerId 被封禁玩家 UUID。
+     * @param hours 封禁时长，单位为小时，可使用小数。
+     * @param reason 封禁原因。
+     * @param type 封禁作用域类型。
+     * @return 封禁结果。
+     */
+    fun ban(playerId: UUID, hours: BigDecimal, reason: String, type: BanType): BanIssueResult {
+        return application.ban(playerId, hours, reason, type)
     }
 
     /**
@@ -57,6 +83,17 @@ internal object BanService {
     }
 
     /**
+     * 同步执行指定类型的解封用例。
+     *
+     * @param playerId 被解除玩家 UUID。
+     * @param type 需要解除的封禁类型。
+     * @return 解封结果。
+     */
+    fun unban(playerId: UUID, type: BanType): UnbanResult {
+        return application.unban(playerId, type)
+    }
+
+    /**
      * 同步查询玩家当前封禁状态。
      *
      * @param playerId 玩家 UUID。
@@ -64,6 +101,17 @@ internal object BanService {
      */
     fun getActiveBan(playerId: UUID): BanLookupResult {
         return application.getActiveBan(playerId)
+    }
+
+    /**
+     * 同步查询指定类型的玩家封禁状态。
+     *
+     * @param playerId 玩家 UUID。
+     * @param type 需要查询的封禁类型。
+     * @return 当前封禁查询结果。
+     */
+    fun getActiveBan(playerId: UUID, type: BanType): BanLookupResult {
+        return application.getActiveBan(playerId, type)
     }
 
     /**
@@ -82,7 +130,9 @@ internal object BanService {
      * @param ban 已成功写入的封禁记录。
      */
     fun disconnectOnlinePlayer(ban: PlayerBan) {
-        kickOnlinePlayer(ban.playerId, BanText.loginDeniedMessage(ban))
+        if (ban.type.blocksServerEntry) {
+            kickOnlinePlayer(ban.playerId, BanText.loginDeniedMessage(ban))
+        }
     }
 
     /**
@@ -121,7 +171,7 @@ internal object BanService {
     fun onPlayerJoin(event: PlayerJoinEvent) {
         val playerId = event.player.uniqueId
         DztAsyncExecutor.supply {
-            getActiveBan(playerId)
+            getActiveBan(playerId, BanType.BAN)
         }.whenComplete { lookup, error ->
             if (error == null && lookup is BanLookupResult.Active) {
                 disconnectOnlinePlayer(lookup.record)
@@ -131,7 +181,7 @@ internal object BanService {
 
     private fun lookupForPreLogin(playerId: UUID): BanLookupResult {
         val future = DztAsyncExecutor.supply {
-            getActiveBan(playerId)
+            getActiveBan(playerId, BanType.BAN)
         }
         return try {
             future.get(PRE_LOGIN_LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS)

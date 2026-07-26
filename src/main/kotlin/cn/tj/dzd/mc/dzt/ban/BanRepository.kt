@@ -11,7 +11,7 @@ import java.util.UUID
 interface BanRepository {
 
     /**
-     * 新增一条封禁记录，并提前解除该玩家尚未到期的旧封禁。
+     * 新增一条封禁记录，并提前解除该玩家同类型且尚未到期的旧封禁。
      *
      * 旧记录不会删除，其计划解封时间保持不变，只会标记为已提前解除。
      *
@@ -21,22 +21,24 @@ interface BanRepository {
     fun createReplacingActive(record: PlayerBan): RepositoryResult<Unit>
 
     /**
-     * 提前解除玩家当前所有有效封禁。
+     * 提前解除玩家指定类型的当前有效封禁。
      *
      * @param playerId 被解除玩家 UUID。
+     * @param type 需要解除的封禁类型。
      * @param releasedAt 提前解除的 Unix 毫秒时间戳。
      * @return 成功值为 true 表示至少解除了一条有效封禁；false 表示当前无有效封禁。
      */
-    fun releaseActive(playerId: UUID, releasedAt: Long): RepositoryResult<Boolean>
+    fun releaseActive(playerId: UUID, type: BanType, releasedAt: Long): RepositoryResult<Boolean>
 
     /**
-     * 读取玩家在指定时间仍有效的最新一条封禁记录。
+     * 读取玩家指定类型在指定时间仍有效的最新一条封禁记录。
      *
      * @param playerId 玩家 UUID。
+     * @param type 需要读取的封禁类型。
      * @param currentTimeMillis 当前 Unix 毫秒时间戳。
      * @return 成功值为 null 表示当前未被封禁。
      */
-    fun findActive(playerId: UUID, currentTimeMillis: Long): RepositoryResult<PlayerBan?>
+    fun findActive(playerId: UUID, type: BanType, currentTimeMillis: Long): RepositoryResult<PlayerBan?>
 
     /**
      * 读取玩家的全部封禁历史。

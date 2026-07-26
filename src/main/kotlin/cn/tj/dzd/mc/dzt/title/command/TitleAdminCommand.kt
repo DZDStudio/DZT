@@ -5,6 +5,7 @@ import cn.tj.dzd.mc.dzt.ban.BanHistoryResult
 import cn.tj.dzd.mc.dzt.ban.BanIssueResult
 import cn.tj.dzd.mc.dzt.ban.BanService
 import cn.tj.dzd.mc.dzt.ban.BanText
+import cn.tj.dzd.mc.dzt.ban.BanType
 import cn.tj.dzd.mc.dzt.ban.PlayerBan
 import cn.tj.dzd.mc.dzt.ban.UnbanResult
 import cn.tj.dzd.mc.dzt.onebot.OneBotGroupApi
@@ -15,6 +16,7 @@ import cn.tj.dzd.mc.dzt.title.TitleGrantResult
 import cn.tj.dzd.mc.dzt.title.TitleRevokeResult
 import cn.tj.dzd.mc.dzt.util.bukkitPlayerOrNull
 import cn.tj.dzd.mc.dzt.util.foliaRun
+import cn.tj.dzd.mc.dzt.flight.FlightService
 import org.bukkit.entity.Player
 import taboolib.common.platform.ProxyCommandSender
 import taboolib.common.platform.command.CommandBody
@@ -113,29 +115,51 @@ object TitleAdminCommand {
         }
     }
 
-    @CommandBody(description = "按小时封禁玩家")
+    @CommandBody(description = "按小时封禁玩家，可指定封禁类型")
     val ban = subCommand {
         dynamic("player") {
             suggestionUncheck<ProxyCommandSender> { _, _ -> onlinePlayerNames() }
             dynamic("hours") {
                 execute<ProxyCommandSender> { sender, context, _ ->
-                    executeBan(sender, context, "")
+                    executeBan(sender, context, "", BanType.BAN)
+                }
+                literal("type", "scope", description = "指定封禁类型") {
+                    dynamic("banType") {
+                        suggestionUncheck<ProxyCommandSender> { _, _ -> defaultBanTypeSuggestions() }
+                        execute<ProxyCommandSender> { sender, context, _ ->
+                            val type = sender.resolveBanType(context["banType"]) ?: return@execute
+                            executeBan(sender, context, "", type)
+                        }
+                        dynamic("reason", optional = true) {
+                            execute<ProxyCommandSender> { sender, context, argument ->
+                                val type = sender.resolveBanType(context["banType"]) ?: return@execute
+                                executeBan(sender, context, argument, type)
+                            }
+                        }
+                    }
                 }
                 dynamic("reason", optional = true) {
                     execute<ProxyCommandSender> { sender, context, argument ->
-                        executeBan(sender, context, argument)
+                        executeBan(sender, context, argument, BanType.BAN)
                     }
                 }
             }
         }
     }
 
-    @CommandBody(description = "解除玩家当前封禁")
+    @CommandBody(description = "解除玩家指定类型的当前封禁")
     val unban = subCommand {
         dynamic("player") {
             suggestionUncheck<ProxyCommandSender> { _, _ -> onlinePlayerNames() }
             execute<ProxyCommandSender> { sender, context, _ ->
-                executeUnban(sender, context)
+                executeUnban(sender, context, BanType.BAN)
+            }
+            dynamic("banType", optional = true) {
+                suggestionUncheck<ProxyCommandSender> { _, _ -> defaultBanTypeSuggestions() }
+                execute<ProxyCommandSender> { sender, context, _ ->
+                    val type = sender.resolveBanType(context["banType"]) ?: return@execute
+                    executeUnban(sender, context, type)
+                }
             }
         }
     }
@@ -266,6 +290,7 @@ object TitleAdminCommand {
         sender: ProxyCommandSender,
         context: CommandContext<ProxyCommandSender>,
         reason: String,
+        type: BanType,
     ) {
         if (!sender.requireOp()) {
             return
@@ -278,8 +303,8 @@ object TitleAdminCommand {
         }
         val displayHours = hours.stripTrailingZeros().toPlainString()
 
-        sender.sendLines("§e正在封禁 ${target.label}……")
-        BanApi.ban(target.uuid, hours, reason).whenComplete { result, error ->
+        sender.sendLines("§e正在以 ${type.value} 类型封禁 ${target.label}……")
+        BanApi.ban(target.uuid, hours, reason, type).whenComplete { result, error ->
             if (error != null) {
                 sender.sendLines("§c封禁 ${target.label} 失败：${error.readableMessage()}")
                 return@whenComplete
@@ -288,10 +313,15 @@ object TitleAdminCommand {
             when (result) {
                 is BanIssueResult.Banned -> {
                     sender.sendLines(
-                        "§a已封禁 ${target.label} ${displayHours} 小时，预计解封时间：" +
+                        "§a已对 ${target.label} 执行 ${type.value} 类型封禁 ${displayHours} 小时，预计解封时间：" +
                             "§f${BanText.formatTime(result.record.unbanAt)} §a北京时间。"
                     )
-                    BanService.disconnectOnlinePlayer(result.record)
+                    if (result.record.type.blocksServerEntry) {
+                        BanService.disconnectOnlinePlayer(result.record)
+                    }
+                    if (result.record.type.blocksFlight) {
+                        FlightService.applyFlightBan(result.record)
+                    }
                     publishBanAnnouncement(target.label, result.record, hours)
                 }
 
@@ -328,24 +358,31 @@ object TitleAdminCommand {
     private fun executeUnban(
         sender: ProxyCommandSender,
         context: CommandContext<ProxyCommandSender>,
+        type: BanType,
     ) {
         if (!sender.requireOp()) {
             return
         }
         val target = sender.resolveTarget(context["player"]) ?: return
 
-        sender.sendLines("§e正在解除 ${target.label} 的封禁……")
-        BanApi.unban(target.uuid).whenComplete { result, error ->
+        sender.sendLines("§e正在解除 ${target.label} 的 ${type.value} 类型封禁……")
+        BanApi.unban(target.uuid, type).whenComplete { result, error ->
             if (error != null) {
                 sender.sendLines("§c解除 ${target.label} 的封禁失败：${error.readableMessage()}")
                 return@whenComplete
             }
 
             when (result) {
-                UnbanResult.UNBANNED -> sender.sendLines("§a已解除 ${target.label} 的当前封禁，历史记录已保留。")
-                UnbanResult.NOT_BANNED -> sender.sendLines("§e${target.label} 当前未被封禁。")
+                UnbanResult.UNBANNED -> {
+                    if (type.blocksFlight) {
+                        FlightService.clearFlightBan(target.uuid)
+                    }
+                    sender.sendLines("§a已解除 ${target.label} 的 ${type.value} 类型封禁，历史记录已保留。")
+                }
+
+                UnbanResult.NOT_BANNED -> sender.sendLines("§e${target.label} 当前没有 ${type.value} 类型封禁。")
                 UnbanResult.FAILED,
-                null -> sender.sendLines("§c解除 ${target.label} 的封禁失败。")
+                null -> sender.sendLines("§c解除 ${target.label} 的 ${type.value} 类型封禁失败。")
             }
         }
     }
@@ -452,6 +489,14 @@ object TitleAdminCommand {
         return false
     }
 
+    /** 解析命令中的封禁类型，并向命令发送者说明格式限制。 */
+    private fun ProxyCommandSender.resolveBanType(input: String): BanType? {
+        return BanType.fromCommand(input) ?: run {
+            sendLines("§c封禁类型必须为 1-16 位小写字母、数字、下划线或连字符，且以字母开头。")
+            null
+        }
+    }
+
     private fun ProxyCommandSender.resolveTarget(input: String): CommandTarget? {
         val normalized = input.trim()
         val uuid = runCatching { UUID.fromString(normalized) }.getOrNull()
@@ -474,8 +519,9 @@ object TitleAdminCommand {
             "§e/dzt title give <玩家名/UUID> <ID> \"§f<显示名>§e\" [介绍]",
             "§e/dzt title remove <玩家名/UUID> <ID>",
             "§e/dzt title list <玩家名/UUID>",
-            "§e/dzt ban <玩家名/UUID> <小时数，可为小数> [原因]",
-            "§e/dzt unban <玩家名/UUID>",
+            "§e/dzt ban <玩家名/UUID> <小时数，可为小数> [原因] §7- 默认 ban 类型",
+            "§e/dzt ban <玩家名/UUID> <小时数，可为小数> type <类型> [原因]",
+            "§e/dzt unban <玩家名/UUID> [类型] §7- 默认解除 ban 类型",
             "§e/dzt banhistory <玩家名/UUID> [页码]",
             "§e/dzt onebot player <消息>",
             "§e/dzt onebot management <消息>",
@@ -550,7 +596,7 @@ object TitleAdminCommand {
             !active -> "§a已提前解除"
             else -> "§7已自然到期"
         }
-        return "§8#${recordId.toString().take(8)} §7封禁：${BanText.formatTime(bannedAt)} " +
+        return "§8#${recordId.toString().take(8)} §7类型：§f${type.value} §7封禁：${BanText.formatTime(bannedAt)} " +
             "§7预计解封：${BanText.formatTime(unbanAt)} §7状态：$status §8原因：§f$reason"
     }
 
@@ -565,6 +611,8 @@ object TitleAdminCommand {
     private fun onlinePlayerNames(): List<String> {
         return onlinePlayers.map { it.name }.sortedWith(String.CASE_INSENSITIVE_ORDER)
     }
+
+    private fun defaultBanTypeSuggestions(): List<String> = listOf(BanType.BAN.value, BanType.FLY.value)
 
     private fun String.translateLegacyColorCodes(): String {
         val chars = toCharArray()

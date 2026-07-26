@@ -15,6 +15,7 @@ import java.util.UUID
  * @property reason 封禁原因。
  * @property active 是否尚未被手动解除或后一次封禁替换。
  * @property releasedAt 提前解除时间；0 表示未提前解除。
+ * @property type 封禁作用域；未指定时为 [BanType.BAN]，保证历史调用仍禁止登录。
  */
 data class PlayerBan(
     val recordId: UUID,
@@ -24,6 +25,7 @@ data class PlayerBan(
     val reason: String,
     val active: Boolean,
     val releasedAt: Long,
+    val type: BanType = BanType.BAN,
 ) {
 
     /**

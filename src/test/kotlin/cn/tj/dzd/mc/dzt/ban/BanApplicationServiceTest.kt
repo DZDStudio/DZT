@@ -13,6 +13,7 @@ class BanApplicationServiceTest {
     private val playerId = UUID.fromString("00000000-0000-0000-0000-000000000101")
     private val firstRecordId = UUID.fromString("00000000-0000-0000-0000-000000000201")
     private val secondRecordId = UUID.fromString("00000000-0000-0000-0000-000000000202")
+    private val thirdRecordId = UUID.fromString("00000000-0000-0000-0000-000000000203")
 
     @Test
     fun `ban stores a normalized reason and an hourly expiry`() {
@@ -71,6 +72,35 @@ class BanApplicationServiceTest {
     }
 
     @Test
+    fun `different ban types coexist and only replace their own type`() {
+        val repository = FakeBanRepository()
+        var now = 1_000L
+        val recordIds = ArrayDeque(listOf(firstRecordId, secondRecordId, thirdRecordId))
+        val service = BanApplicationService(repository, { now }) { recordIds.removeFirst() }
+
+        val serverBan = assertIs<BanIssueResult.Banned>(
+            service.ban(playerId, 10L, "服务器封禁", BanType.BAN)
+        ).record
+        now = 2_000L
+        val firstFlyBan = assertIs<BanIssueResult.Banned>(
+            service.ban(playerId, 10L, "飞行封禁", BanType.FLY)
+        ).record
+        now = 3_000L
+        val replacementFlyBan = assertIs<BanIssueResult.Banned>(
+            service.ban(playerId, 1L, "新的飞行封禁", BanType.FLY)
+        ).record
+
+        assertEquals(BanLookupResult.Active(serverBan), service.getActiveBan(playerId, BanType.BAN))
+        assertEquals(BanLookupResult.Active(replacementFlyBan), service.getActiveBan(playerId, BanType.FLY))
+
+        val records = assertIs<BanHistoryResult.Available>(service.getHistory(playerId)).records
+        val originalFlyRecord = records.single { it.recordId == firstFlyBan.recordId }
+        assertEquals(false, originalFlyRecord.active)
+        assertEquals(3_000L, originalFlyRecord.releasedAt)
+        assertEquals(true, serverBan.active)
+    }
+
+    @Test
     fun `manual unban retains the scheduled expiry in history`() {
         val repository = FakeBanRepository()
         var now = 1_000L
@@ -87,6 +117,25 @@ class BanApplicationServiceTest {
         assertEquals(2_000L, record.releasedAt)
         assertEquals(10_801_000L, record.unbanAt)
         assertEquals("测试", record.reason)
+    }
+
+    @Test
+    fun `unban only releases the requested ban type`() {
+        val repository = FakeBanRepository()
+        var now = 1_000L
+        val recordIds = ArrayDeque(listOf(firstRecordId, secondRecordId))
+        val service = BanApplicationService(repository, { now }) { recordIds.removeFirst() }
+
+        val serverBan = assertIs<BanIssueResult.Banned>(
+            service.ban(playerId, 3L, "服务器封禁", BanType.BAN)
+        ).record
+        now = 2_000L
+        service.ban(playerId, 3L, "飞行封禁", BanType.FLY)
+
+        now = 3_000L
+        assertEquals(UnbanResult.UNBANNED, service.unban(playerId, BanType.FLY))
+        assertEquals(BanLookupResult.Active(serverBan), service.getActiveBan(playerId, BanType.BAN))
+        assertEquals(BanLookupResult.NotBanned, service.getActiveBan(playerId, BanType.FLY))
     }
 
     @Test
@@ -130,7 +179,7 @@ private class FakeBanRepository : BanRepository {
             return RepositoryResult.Failure
         }
         storedRecords.replaceAll { existing ->
-            if (existing.isEffectiveAt(record.bannedAt)) {
+            if (existing.type == record.type && existing.isEffectiveAt(record.bannedAt)) {
                 existing.copy(active = false, releasedAt = record.bannedAt)
             } else {
                 existing
@@ -140,13 +189,21 @@ private class FakeBanRepository : BanRepository {
         return RepositoryResult.Success(Unit)
     }
 
-    override fun releaseActive(playerId: UUID, releasedAt: Long): RepositoryResult<Boolean> {
+    override fun releaseActive(
+        playerId: UUID,
+        type: BanType,
+        releasedAt: Long,
+    ): RepositoryResult<Boolean> {
         if (fail) {
             return RepositoryResult.Failure
         }
         var released = false
         storedRecords.replaceAll { existing ->
-            if (existing.playerId == playerId && existing.isEffectiveAt(releasedAt)) {
+            if (
+                existing.playerId == playerId &&
+                existing.type == type &&
+                existing.isEffectiveAt(releasedAt)
+            ) {
                 released = true
                 existing.copy(active = false, releasedAt = releasedAt)
             } else {
@@ -156,14 +213,22 @@ private class FakeBanRepository : BanRepository {
         return RepositoryResult.Success(released)
     }
 
-    override fun findActive(playerId: UUID, currentTimeMillis: Long): RepositoryResult<PlayerBan?> {
+    override fun findActive(
+        playerId: UUID,
+        type: BanType,
+        currentTimeMillis: Long,
+    ): RepositoryResult<PlayerBan?> {
         if (fail) {
             return RepositoryResult.Failure
         }
         return RepositoryResult.Success(
             storedRecords
                 .asSequence()
-                .filter { it.playerId == playerId && it.isEffectiveAt(currentTimeMillis) }
+                .filter {
+                    it.playerId == playerId &&
+                        it.type == type &&
+                        it.isEffectiveAt(currentTimeMillis)
+                }
                 .maxWithOrNull(compareBy<PlayerBan>(PlayerBan::bannedAt).thenBy { it.recordId.toString() })
         )
     }
